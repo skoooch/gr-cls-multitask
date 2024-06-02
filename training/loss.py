@@ -5,8 +5,8 @@ import torch.nn.functional as F
 import collections
 from functools import partial
 
-from parameters import Params
-from model_utils import *
+from utils.parameters import Params
+from utils.model_utils import *
 
 params = Params()
 

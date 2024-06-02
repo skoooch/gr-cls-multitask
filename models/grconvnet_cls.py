@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .grasp_model import GraspModel, ResidualBlock
+from grasp_model import GraspModel, ResidualBlock
 
 
 class GrCLS(GraspModel):
