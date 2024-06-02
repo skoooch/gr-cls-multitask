@@ -27,8 +27,8 @@ import torch
 import os
 import time
 
-from parameters import Params
-import inference.models.alexnet as models
+from utils.parameters import Params
+import models.alexnet as models
 from training.evaluation import get_cls_acc, get_grasp_acc, visualize_grasp, visualize_cls
 
 params = Params()
