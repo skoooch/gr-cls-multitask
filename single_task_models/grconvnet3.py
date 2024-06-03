@@ -1,7 +1,7 @@
 import torch.nn as nn
 import torch.nn.functional as F
 
-from models.grasp_model import GraspModel, ResidualBlock
+from single_task_models.grasp_model import GraspModel, ResidualBlock
 
 
 class GenerativeResnet(GraspModel):

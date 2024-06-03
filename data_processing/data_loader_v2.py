@@ -17,7 +17,7 @@ import numpy as np
 
 from PIL import Image
 from torchvision import transforms
-from parameters import Params
+from utils.parameters import Params
 from utils.utils import AddGaussianNoise, tensor_concat
 
 params = Params()

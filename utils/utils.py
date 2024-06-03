@@ -55,6 +55,23 @@ def epoch_logger(network_name, epoch, train_loss, val_loss, test_loss, train_acc
         f.write('\n')
         f.write(log_message)
 
+def multi_epoch_logger(network_name, epoch, train_loss, val_loss, test_loss, train_acc, val_acc, test_acc):
+    """Writes epoch loss and accuracy statistics to log fie. Each loss is a tuple of the form (Grasping training stat, Classification training stat)"""
+    filename = '%s_log.txt' % network_name
+    with open(os.path.join(params.LOG_PATH, filename), 'a') as f:
+        train_loss_mean = sum(train_loss) / len(train_loss)
+        val_loss_mean = sum(val_loss) / len(val_loss)
+        log_message = 'Epoch: %s -- GRP Train Loss: %s -- GRP Train Acc: %s -- GRP Val Loss: %s -- GRP Val Acc: %s\n \
+                        GRP Loss: %s -- GRP Acc: %s CLS Train Loss: %s -- CLS Train Acc: %s -- CLS Val Loss: %s -- CLS Val Acc: %s\n \
+                        CLS Loss: %s -- CLS Acc: %s ' \
+                        % (epoch,
+                           round(train_loss_mean[0], 4), train_acc[0],
+                           round(val_loss_mean[0], 4), val_acc[0],
+                           test_loss[0], test_acc[0],round(train_loss_mean[0], 4), train_acc[0],
+                           round(val_loss_mean[0], 4), val_acc[0],
+                           test_loss[0], test_acc[0])
+        f.write('\n')
+        f.write(log_message)
 
 def get_correct_preds(output, label):
     """Returns number of correct predictions out of number of instances."""
