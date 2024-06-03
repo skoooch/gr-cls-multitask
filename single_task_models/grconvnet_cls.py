@@ -24,7 +24,7 @@ class GrCLS(GraspModel):
 
         self.conv3 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
         self.bn3 = nn.BatchNorm2d(128)
-
+        
         self.res1 = ResidualBlock(128, 128)
         self.res2 = ResidualBlock(128, 128)
         self.res3 = ResidualBlock(128, 128)
