@@ -17,7 +17,7 @@ class GenerativeResnet(GraspModel):
 
         self.conv3 = nn.Conv2d(channel_size * 2, channel_size * 4, kernel_size=4, stride=2, padding=1)
         self.bn3 = nn.BatchNorm2d(channel_size * 4)
-
+        
         self.res1 = ResidualBlock(channel_size * 4, channel_size * 4)
         self.res2 = ResidualBlock(channel_size * 4, channel_size * 4)
         self.res3 = ResidualBlock(channel_size * 4, channel_size * 4)
