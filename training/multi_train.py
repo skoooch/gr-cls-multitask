@@ -34,8 +34,8 @@ from torch.optim import Adam
 from torchvision.models import alexnet
 
 from tqdm import tqdm
-
-import single_task_models.alexnet as models
+import multi_task_models.grcn_multi_alex as models
+import single_task_models.alexnet as multi_models
 import single_task_models.grConvMap as modelsGr
 from utils.paths import Path
 from utils.parameters import Params
@@ -61,8 +61,8 @@ torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 # Load model
 #model = models.AlexnetMap_v3().to(params.DEVICE)
-model = modelsGr.GrConvMap_v1().to(params.DEVICE)
-
+#model = modelsGr.GrConvMap_v1().to(params.DEVICE)
+model =  multi_models.Multi_AlexnetMap_v3().to(params.DEVICE)
 # Teacher model
 pretrained_alexnet = alexnet(pretrained=True).to(params.DEVICE)
 pretrained_alexnet.eval()

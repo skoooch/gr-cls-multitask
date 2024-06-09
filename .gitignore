@@ -1,0 +1,14 @@
+*.pth
+*.obj
+*__pycache__/
+*.npy
+*_mask.png
+*_grasps.txt
+*.tiff
+*_RGB.png
+*.zip
+dump
+*.png
+.DS*
+.ipynb_checkpoints
+.idea
