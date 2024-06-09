@@ -2,7 +2,7 @@ import os
 import datetime
 import torch
 
-from parameters import Params
+from utils.parameters import Params
 
 params = Params()
 

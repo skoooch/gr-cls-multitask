@@ -26,7 +26,7 @@ loss = nn.CrossEntropyLoss()
 
 """
 
-import os
+import os 
 import torch 
 import torch.nn as nn
 import torch.nn.functional as F
@@ -34,16 +34,14 @@ from torch.optim import Adam
 from torchvision.models import alexnet
 
 from tqdm import tqdm
-import multi_task_models.grcn_multi_alex as models
-import single_task_models.alexnet as multi_models
-import single_task_models.grConvMap as modelsGr
+from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from utils.paths import Path
 from utils.parameters import Params
 from data_processing.data_loader_v2 import DataLoader
 from utils.utils import epoch_logger, log_writer, get_correct_cls_preds_from_map, get_acc
 from utils.grasp_utils import get_correct_grasp_preds_from_map
-from single_task.evaluation import get_cls_acc, get_grasp_acc
-from single_task.loss import MapLoss, DistillationLoss
+from training.single_task.evaluation import get_cls_acc, get_grasp_acc
+from training.single_task.loss import MapLoss, DistillationLoss
 
 SEED=42
 params = Params() 
@@ -62,18 +60,19 @@ torch.cuda.manual_seed(SEED)
 # Load model
 #model = models.AlexnetMap_v3().to(params.DEVICE)
 #model = modelsGr.GrConvMap_v1().to(params.DEVICE)
-model =  multi_models.Multi_AlexnetMap_v3().to(params.DEVICE)
+model =  Multi_AlexnetMap_v3().to(params.DEVICE)
+
 # Teacher model
-pretrained_alexnet = alexnet(pretrained=True).to(params.DEVICE)
-pretrained_alexnet.eval()
-for weights in pretrained_alexnet.features.parameters():
-    weights.requires_grad = False
+# pretrained_alexnet = alexnet(pretrained=True).to(params.DEVICE)
+# pretrained_alexnet.eval()
+# for weights in pretrained_alexnet.features.parameters():
+#     weights.requires_grad = False
 
 # Load checkpoint weights
-checkpoint_name = 'alexnetGrasp_depthconcat_convtrans_top5_v4.3'
-checkpoin_epoch = 50
-#checkpoint_path = os.path.join(params.MODEL_PATH, checkpoint_name, '%s_epoch%s.pth' % (checkpoint_name, checkpoint_epoch))
-#model.load_state_dict(torch.load(checkpoint_path))
+# checkpoint_name = 'alexnetGrasp_depthconcat_convtrans_top5_v4.3'
+# checkpoint_epoch = 50
+# checkpoint_path = os.path.join(params.MODEL_PATH, checkpoint_name, '%s_epoch%s.pth' % (checkpoint_name, checkpoint_epoch))
+# model.load_state_dict(torch.load(checkpoint_path))
 
 # Create DataLoader class
 data_loader = DataLoader(params.TRAIN_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT, seed=SEED)
@@ -100,9 +99,9 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
     for step, ((img_grp, map_grp, label_grp), (img_cls, map_cls, label_cls)) in enumerate(zip(data_loader.load_grasp_batch(), data_loader.load_batch())):
         optim.zero_grad()
         output_cls = model(img_cls, is_grasp=False)
-        loss_cls = MapLoss(output_cls, map)
+        loss_cls = MapLoss(output_cls, map_cls)
         output_grp = model(img_grp, is_grasp=True)
-        loss_grp = MapLoss(output_grp, is_grasp=True)
+        loss_grp = MapLoss(output_grp, map_grp)
         # Loss fn for CLS/Grasp training
         loss = loss_grp + loss_cls
         # Distillation loss (experimental)

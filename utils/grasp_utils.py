@@ -4,7 +4,7 @@ import numpy as np
 from shapely.geometry import Polygon
 from math import pi 
 
-from parameters import Params
+from utils.parameters import Params
 
 params = Params()
 

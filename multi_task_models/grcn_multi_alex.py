@@ -99,7 +99,10 @@ class Multi_AlexnetMap_v3(nn.Module):
         for m in self.grasp.modules():
             if isinstance(m, (nn.ConvTranspose2d)):
                 nn.init.xavier_uniform_(m.weight, gain=1)
-        for m in self.confidence.modules():
+        for m in self.cls_confidence.modules():
+            if isinstance(m, (nn.ConvTranspose2d)):
+                nn.init.xavier_uniform_(m.weight, gain=1)
+        for m in self.grasp_confidence.modules():
             if isinstance(m, (nn.ConvTranspose2d)):
                 nn.init.xavier_uniform_(m.weight, gain=1)
 
@@ -114,12 +117,12 @@ class Multi_AlexnetMap_v3(nn.Module):
 
         x = self.features(x)
         if is_grasp:
-            x = self.grasp(x)
+            out = self.grasp(x)
             confidence = self.grasp_confidence(x)
         else:
-            x = self.cls(x)
+            out = self.cls(x)
             confidence = self.cls_confidence(x)
-        out = torch.cat((x, confidence), dim=1)
+        out = torch.cat((out, confidence), dim=1)
         return out
 
     # Unfreeze pretrained layers (1st & 2nd CNN layer)

@@ -8,7 +8,7 @@ This file is Copyright (c) 2022 Steven Tin Sui Luo.
 
 import os
 
-from parameters import Params
+from utils.parameters import Params
 
 params = Params()
 
