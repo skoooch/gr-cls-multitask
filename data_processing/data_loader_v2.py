@@ -282,10 +282,10 @@ class DataLoader:
         for img_path in glob.iglob('%s/*/*/*' % self.path):
             if not img_path.endswith('map_grasps.npy'):
                 continue
-            
-            img_cls = img_path.split('\\')[-3]
+            print(img_path)
+            img_cls = img_path.split('/')[-3]
             # E.g. '<img_idx>_<img_id>_<angle>_<img_type>.png'
-            img_name = img_path.split('\\')[-1]
+            img_name = img_path.split('/')[-1]
             img_var = img_name.split('_')[0]
             img_id = img_name.split('_')[1]
             img_angle = img_name.split('_')[-3]
