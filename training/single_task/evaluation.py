@@ -136,8 +136,8 @@ def visualize_cls(model, truncation=None):
         ref_cls_map = get_ref_map(ref_cls_1, ref_cls_2, ref_cls_3, ref_cls_4, label)
 
         vis_img = np.concatenate((model_cls_map, true_cls_map, raw_img, ref_cls_map), 1)
-        cv2.imshow('vis', vis_img)
-        cv2.waitKey(0)
+        # cv2.imshow('vis', vis_img)
+        # cv2.waitKey(0)
         cv2.imwrite('vis/%s.png' % i, vis_img)
 
 
