@@ -33,7 +33,7 @@ class Params:
         self.IMG_SIZE = (self.NUM_CHANNEL, self.OUTPUT_SIZE, self.OUTPUT_SIZE) 
         self.EPOCHS = 150
         self.LR = 5e-4
-        self.BATCH_SIZE = 2
+        self.BATCH_SIZE = 5
         self.TRAIN_VAL_SPLIT = 0.1
         self.DISTILL_ALPHA = 1.0
 

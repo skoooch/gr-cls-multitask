@@ -88,7 +88,9 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
         model.unfreeze_depth_backbone()
 
     train_history = []
+    c_train_history = []
     val_history = []
+    c_val_history = []
     train_total = 1
     train_correct = 1
     val_total = 1
@@ -96,6 +98,7 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
     # Data loop for CLS training
     #for step, (img, map, label) in enumerate(data_loader.load_batch()):
     # Data loop for Grasp training
+    
     image_data = enumerate(zip(data_loader.load_grasp_batch(), data_loader.load_batch()))
     for step, ((img_grp, map_grp, label_grp), (img_cls, map_cls, label_cls)) in image_data:
         optim.zero_grad()
@@ -108,32 +111,33 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
         # Distillation loss (experimental)
         #distill_loss = DistillationLoss(img, model, pretrained_alexnet, model_s_type='alexnetMap', model_t_type='alexnet')
         #loss = loss + distill_loss * params.DISTILL_ALPHA
-        
         if step < n_train:
             loss.backward()
             optim.step()
 
             # Write loss to log file -- 'logs/<model_name>/<model_name>_log.txt'
             log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=True)
-            train_history.append((loss_grp, loss_cls))
+            train_history.append(loss_grp)
+            c_train_history.append(loss_cls)
             # Dummie prediction stats
             correct, total = 0, 1
             train_correct += correct
             train_total += total
         else:
             log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=False)
-            val_history.append(loss_grp, loss_cls)
+            val_history.append(loss_grp)
+            c_val_history.append(loss_cls)
             # Dummie prediction stats
             correct, total = 0, 1
             val_correct += correct
             val_total += total
- 
+                
     # Get testing accuracy stats (CLS / Grasp)
     if (epoch % 10 == 1):
         model.eval()
-        #train_acc, train_loss = get_cls_acc(model, include_depth=True, seed=SEED, dataset=params.TRAIN_PATH, truncation=None)
+        c_train_acc, c_train_loss = get_cls_acc(model, include_depth=True, seed=SEED, dataset=params.TRAIN_PATH, truncation=None)
         train_acc, train_loss = get_grasp_acc(model, include_depth=True, seed=SEED, dataset=params.TRAIN_PATH, truncation=None)
-        #test_acc, test_loss = get_cls_acc(model, include_depth=True, seed=SEED, dataset=params.TEST_PATH, truncation=None)
+        c_test_acc, c_test_loss = get_cls_acc(model, include_depth=True, seed=SEED, dataset=params.TEST_PATH, truncation=None)
         test_acc, test_loss = get_grasp_acc(model, include_depth=True, seed=SEED, dataset=params.TRAIN_PATH, truncation=None)
         scheduler.step()
         
@@ -144,8 +148,9 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
 
     # Get training and validation accuracies
     val_acc = train_acc # get_acc(val_correct, val_total)
+    c_val_acc = c_train_acc
     # Write epoch loss stats to log file
-    epoch_logger(params.MODEL_NAME, epoch, train_history, val_history, test_loss, train_acc, val_acc, test_acc)
+    epoch_logger(params.MODEL_NAME, epoch, train_history, val_history, test_loss, train_acc, val_acc, test_acc, c_train_history, c_val_history, c_test_loss, c_train_acc, c_val_acc, c_test_acc)
     # Save checkpoint model -- 'trained-models/<model_name>/<model_name>_epoch<epoch>.pth'
     torch.save(model.state_dict(), os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_epoch{epoch}.pth"))
 
