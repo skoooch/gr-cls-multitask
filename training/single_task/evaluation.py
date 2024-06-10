@@ -38,7 +38,7 @@ def get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, 
     for i, (img, cls_map, label) in enumerate(data_loader.load_batch()):
         if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
             break
-        output = model(img)
+        output = model(img, is_grasp=True)
         batch_correct, batch_total = get_correct_cls_preds_from_map(output, label)
         correct += batch_correct
         total += batch_total
@@ -65,7 +65,7 @@ def get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH
     for i, (img, map, candidates) in enumerate(data_loader.load_grasp_batch()):
         if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
             break
-        output = model(img)
+        output = model(img, is_grasp=True)
         # Move grasp channel to the end
         output = torch.moveaxis(output, 1, -1)
         # Denoramlize grasps
