@@ -60,7 +60,7 @@ torch.cuda.manual_seed(SEED)
 # Load model
 #model = models.AlexnetMap_v3().to(params.DEVICE)
 #model = modelsGr.GrConvMap_v1().to(params.DEVICE)
-model =  Multi_AlexnetMap_v3().to(params.DEVICE)
+model =  Multi_AlexnetMap_v3().to('cuda')
 
 # Teacher model
 # pretrained_alexnet = alexnet(pretrained=True).to(params.DEVICE)
@@ -96,7 +96,8 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
     # Data loop for CLS training
     #for step, (img, map, label) in enumerate(data_loader.load_batch()):
     # Data loop for Grasp training
-    for step, ((img_grp, map_grp, label_grp), (img_cls, map_cls, label_cls)) in enumerate(zip(data_loader.load_grasp_batch(), data_loader.load_batch())):
+    image_data = enumerate(zip(data_loader.load_grasp_batch(), data_loader.load_batch()))
+    for step, ((img_grp, map_grp, label_grp), (img_cls, map_cls, label_cls)) in image_data:
         optim.zero_grad()
         output_cls = model(img_cls, is_grasp=False)
         loss_cls = MapLoss(output_cls, map_cls)
