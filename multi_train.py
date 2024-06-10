@@ -38,7 +38,7 @@ from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from utils.paths import Path
 from utils.parameters import Params
 from data_processing.data_loader_v2 import DataLoader
-from utils.utils import epoch_logger, log_writer, get_correct_cls_preds_from_map, get_acc
+from utils.utils import multi_epoch_logger, log_writer, get_correct_cls_preds_from_map, get_acc
 from utils.grasp_utils import get_correct_grasp_preds_from_map
 from training.single_task.evaluation import get_cls_acc, get_grasp_acc
 from training.single_task.loss import MapLoss, DistillationLoss
@@ -150,7 +150,7 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
     val_acc = train_acc # get_acc(val_correct, val_total)
     c_val_acc = c_train_acc
     # Write epoch loss stats to log file
-    epoch_logger(params.MODEL_NAME, epoch, train_history, val_history, test_loss, train_acc, val_acc, test_acc, c_train_history, c_val_history, c_test_loss, c_train_acc, c_val_acc, c_test_acc)
+    multi_epoch_logger(params.MODEL_NAME, epoch, train_history, val_history, test_loss, train_acc, val_acc, test_acc, c_train_history, c_val_history, c_test_loss, c_train_acc, c_val_acc, c_test_acc)
     # Save checkpoint model -- 'trained-models/<model_name>/<model_name>_epoch<epoch>.pth'
     torch.save(model.state_dict(), os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_epoch{epoch}.pth"))
 
