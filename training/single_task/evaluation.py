@@ -120,7 +120,7 @@ def visualize_cls(model, truncation=None):
     for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
         if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
             break
-        output = model(img)
+        output = model(img, is_grasp=False)
 
         cls_map[:, :5, :, :] = (cls_map[:, :5, :, :] + 1) / 2
         output[:, :5, :, :] = (output[:, :5, :, :] + 1) / 2
@@ -147,7 +147,7 @@ def visualize_grasp(model):
 
     #for (img, cls_map, label) in data_loader.load_cls():
     for i, (img, grasp_map, candidates) in enumerate(data_loader.load_grasp()):
-        output = model(img)
+        output = model(img, is_grasp=True)
         # Get confidence map
         conf_on_rgb = get_confidence_map(img, output)
         # Move grasp channel to the end
