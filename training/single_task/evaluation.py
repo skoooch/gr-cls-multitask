@@ -38,7 +38,7 @@ def get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, 
     for i, (img, cls_map, label) in enumerate(data_loader.load_batch()):
         if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
             break
-        output = model(img, is_grasp=True)
+        output = model(img, is_grasp=False)
         batch_correct, batch_total = get_correct_cls_preds_from_map(output, label)
         correct += batch_correct
         total += batch_total
@@ -115,7 +115,7 @@ def get_confidence_map(img, output):
 
 def visualize_cls(model, truncation=None):
     """Visualize the model's grasp predictions on test images one by one."""
-    data_loader = DataLoader(params.TEST_PATH_ALT, 1, params.TRAIN_VAL_SPLIT)
+    data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
 
     for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
         if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
@@ -143,7 +143,7 @@ def visualize_cls(model, truncation=None):
 
 def visualize_grasp(model):
     """Visualize the model's grasp predictions on test images one by one."""
-    data_loader = DataLoader(params.TEST_PATH_ALT, 1, params.TRAIN_VAL_SPLIT)
+    data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
 
     #for (img, cls_map, label) in data_loader.load_cls():
     for i, (img, grasp_map, candidates) in enumerate(data_loader.load_grasp()):
@@ -165,8 +165,8 @@ def visualize_grasp(model):
         true_grasp_map = get_grasp_map(img, output_grasp, target_grasps, vis_model=False)
 
         vis_img = np.concatenate((model_grasp_map, true_grasp_map), 1)
-        cv2.imshow('vis', vis_img)
-        cv2.waitKey(0)
+        #cv2.imshow('vis', vis_img)
+        #cv2.waitKey(0)
         cv2.imwrite('vis/%s.png' % i, vis_img)
 
 
