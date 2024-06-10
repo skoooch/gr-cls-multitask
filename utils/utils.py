@@ -62,6 +62,8 @@ def epoch_logger(network_name, epoch, train_loss, val_loss, test_loss, train_acc
                            c_train_loss_mean, c_train_acc,
                            c_val_loss_mean, c_val_acc,
                            c_test_loss, c_test_acc)
+        f.write('\n')
+        f.write(log_message)
 
 def multi_epoch_logger(network_name, epoch, train_loss, val_loss, test_loss, train_acc, val_acc, test_acc):
     """Writes epoch loss and accuracy statistics to log fie. Each loss is a tuple of the form (Grasping training stat, Classification training stat)"""
