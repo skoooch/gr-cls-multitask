@@ -51,16 +51,16 @@ def epoch_logger(network_name, epoch, train_loss, val_loss, test_loss, train_acc
         log_message = 'Epoch: %s -- Train Loss: %s -- Train Acc: %s -- Val Loss: %s -- Val Acc: %s\n \
                         Test Loss: %s -- Test Acc: %s' \
                         % (epoch,
-                           round(train_loss_mean, 4), train_acc,
-                           round(val_loss_mean, 4), val_acc,
+                           torch.round(train_loss_mean, 4), train_acc,
+                           torch.round(val_loss_mean, 4), val_acc,
                            test_loss, test_acc)
         f.write('\n')
         f.write(log_message)
         log_message = 'Epoch: %s -- Train Loss: %s -- Train Acc: %s -- Val Loss: %s -- Val Acc: %s\n \
                         Test Loss: %s -- Test Acc: %s' \
                         % (epoch,
-                           round(c_train_loss_mean, 4), c_train_acc,
-                           round(c_val_loss_mean, 4), c_val_acc,
+                           torch.round(c_train_loss_mean, 4), c_train_acc,
+                           torch.round(c_val_loss_mean, 4), c_val_acc,
                            c_test_loss, c_test_acc)
 
 def multi_epoch_logger(network_name, epoch, train_loss, val_loss, test_loss, train_acc, val_acc, test_acc):
