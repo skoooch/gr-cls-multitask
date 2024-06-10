@@ -54,11 +54,11 @@ def grasps_to_bboxes(grasps):
     """Converts grasp boxes to bounding boxes."""
     # convert grasp representation to bbox
     print(grasps)
-    x = grasps[:, 0] * 1024
-    y = grasps[:, 1] * 1024
-    theta = torch.deg2rad(grasps[:, 2] * 180 - 90)
-    w = grasps[:, 3] * 1024
-    h = grasps[:, 4] * 100
+    x = grasps[:, :, 0] * 1024
+    y = grasps[:, :, 1] * 1024
+    theta = torch.deg2rad(grasps[:, :,2] * 180 - 90)
+    w = grasps[:, :, 3] * 1024
+    h = grasps[:, :, 4] * 100
     
     x1 = x -w/2*torch.cos(theta) +h/2*torch.sin(theta)
     y1 = y -w/2*torch.sin(theta) -h/2*torch.cos(theta)
