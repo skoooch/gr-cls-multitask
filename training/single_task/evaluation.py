@@ -156,13 +156,14 @@ def visualize_grasp(model):
         # Convert grasp map into single grasp prediction
         output_grasp = map2singlegrasp(output)
         # Denoramlize grasps
+        
         denormalize_grasp(grasp_map)
         # Convert grasp maps into grasp candidate tensors
         target_grasps = map2grasp(grasp_map[0])
         
         # Get grasps map on the rgb image
-        model_grasp_map = get_grasp_map(conf_on_rgb, output_grasp, target_grasps, vis_truth=False)
-        true_grasp_map = get_grasp_map(img, output_grasp, target_grasps, vis_model=False)
+        model_grasp_map = get_grasp_map(conf_on_rgb, output_grasp[None, :, :], target_grasps[None, :, :], vis_truth=False)
+        true_grasp_map = get_grasp_map(img, output_grasp[None, :, :], target_grasps[None, :, :], vis_model=False)
 
         vis_img = np.concatenate((model_grasp_map, true_grasp_map), 1)
         #cv2.imshow('vis', vis_img)
@@ -285,15 +286,18 @@ def get_grasp_map(img, output, candidates, vis_model=True, vis_truth=True):
 
 def draw_bbox(img, bbox, color, width):
     """Draw grasp boxes with the grasp-plate edges as RED and the
-    other two edges as <color>."""
-    x1 = int(bbox[0] / 1024 * params.OUTPUT_SIZE)
-    y1 = int(bbox[1] / 1024 * params.OUTPUT_SIZE)
-    x2 = int(bbox[2] / 1024 * params.OUTPUT_SIZE)
-    y2 = int(bbox[3] / 1024 * params.OUTPUT_SIZE)
-    x3 = int(bbox[4] / 1024 * params.OUTPUT_SIZE)
-    y3 = int(bbox[5] / 1024 * params.OUTPUT_SIZE)
-    x4 = int(bbox[6] / 1024 * params.OUTPUT_SIZE)
-    y4 = int(bbox[7] / 1024 * params.OUTPUT_SIZE)
+  
+  other two edges as <color>."""
+    print(bbox)
+    print(bbox.shape)
+    x1 = int(bbox[0, 0] / 1024 * params.OUTPUT_SIZE)
+    y1 = int(bbox[0, 1] / 1024 * params.OUTPUT_SIZE)
+    x2 = int(bbox[0, 2] / 1024 * params.OUTPUT_SIZE)
+    y2 = int(bbox[0, 3] / 1024 * params.OUTPUT_SIZE)
+    x3 = int(bbox[0, 4] / 1024 * params.OUTPUT_SIZE)
+    y3 = int(bbox[0, 5] / 1024 * params.OUTPUT_SIZE)
+    x4 = int(bbox[0, 6] / 1024 * params.OUTPUT_SIZE)
+    y4 = int(bbox[0, 7] / 1024 * params.OUTPUT_SIZE)
     cv2.line(img, (x1, y1), (x2, y2), color, width)
     cv2.line(img, (x2, y2), (x3, y3), (0, 0, 255), 1)
     cv2.line(img, (x3, y3), (x4, y4), color, width)
