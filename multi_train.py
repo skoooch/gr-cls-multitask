@@ -116,7 +116,7 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
             optim.step()
 
             # Write loss to log file -- 'logs/<model_name>/<model_name>_log.txt'
-            log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=True)
+            # log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=True)
             train_history.append(loss_grp)
             c_train_history.append(loss_cls)
             # Dummie prediction stats
@@ -124,7 +124,7 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
             train_correct += correct
             train_total += total
         else:
-            log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=False)
+            # log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=False)
             val_history.append(loss_grp)
             c_val_history.append(loss_cls)
             # Dummie prediction stats
