@@ -54,7 +54,7 @@ def epoch_logger(network_name, epoch, train_loss, val_loss, test_loss, train_acc
                            train_loss_mean, train_acc,
                            val_loss_mean, val_acc,
                            test_loss, test_acc)
-        f.write('\n')
+        f.write('Grasping: \n')
         f.write(log_message)
         log_message = 'Epoch: %s -- Train Loss: %s -- Train Acc: %s -- Val Loss: %s -- Val Acc: %s\n \
                         Test Loss: %s -- Test Acc: %s' \
@@ -62,7 +62,7 @@ def epoch_logger(network_name, epoch, train_loss, val_loss, test_loss, train_acc
                            c_train_loss_mean, c_train_acc,
                            c_val_loss_mean, c_val_acc,
                            c_test_loss, c_test_acc)
-        f.write('\n')
+        f.write('Classification: \n')
         f.write(log_message)
 
 def multi_epoch_logger(network_name, epoch, train_loss, val_loss, test_loss, train_acc, val_acc, test_acc):
