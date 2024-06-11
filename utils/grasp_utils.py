@@ -90,7 +90,7 @@ def single_grasp_to_bboxes(grasps):
     y4 = y -w/2*torch.sin(theta) +h/2*torch.cos(theta)
     bboxes = torch.cat((x1.reshape(1), y1.reshape(1), x2.reshape(1), y2.reshape(1), x3.reshape(1), y3.reshape(1), x4.reshape(1), y4.reshape(1)),0)
     return bboxes
-
+    #test
 
 def box_iou(bbox_value, bbox_target):
     """Returns the iou between <bbox_value> and <bbox_target>."""
