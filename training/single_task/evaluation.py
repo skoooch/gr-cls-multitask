@@ -171,7 +171,7 @@ def visualize_grasp(model):
         vis_img = np.concatenate((model_grasp_map, true_grasp_map), 1)
         #cv2.imshow('vis', vis_img)
         #cv2.waitKey(0)
-        cv2.imwrite('vis/%s.png' % i, vis_img)
+        cv2.imwrite('vis/grasp%s.png' % i, vis_img)
 
 
 def map2singlegrasp(output):
