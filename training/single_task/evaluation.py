@@ -149,19 +149,23 @@ def visualize_grasp(model):
     for i, (img, grasp_map, candidates) in enumerate(data_loader.load_grasp()):
         output = model(img, is_grasp=True)
         # Get confidence map
-        conf_on_rgb = get_confidence_map(img, output)
+        #conf_on_rgb = get_confidence_map(img, output)
         # Move grasp channel to the end
         output = torch.moveaxis(output, 1, -1)
         grasp_map = torch.moveaxis(grasp_map, 1, -1)
+        denormalize_grasp(output)
         # Convert grasp map into single grasp prediction
         output_grasp = map2singlegrasp(output)
         # Denoramlize grasps
+        
         denormalize_grasp(grasp_map)
         # Convert grasp maps into grasp candidate tensors
         target_grasps = map2grasp(grasp_map[0])
-        
+        # print("out")
+        # print(output_grasp)
+        # print(target_grasps)
         # Get grasps map on the rgb image
-        model_grasp_map = get_grasp_map(conf_on_rgb, output_grasp, target_grasps, vis_truth=False)
+        model_grasp_map = get_grasp_map(img, output_grasp, target_grasps, vis_truth=False)
         true_grasp_map = get_grasp_map(img, output_grasp, target_grasps, vis_model=False)
 
         vis_img = np.concatenate((model_grasp_map, true_grasp_map), 1)
@@ -263,14 +267,8 @@ def get_grasp_map(img, output, candidates, vis_model=True, vis_truth=True):
     Remarks: grasp plate positions are all colored RED
 
     """
-    if len(output.shape) == 2:
-        output_bbox = single_grasp_to_bboxes(output)
-    else:
-        output_bbox = grasps_to_bboxes(output)
-    if len(candidates.shape) == 2:
-        target_bboxes = single_grasp_to_bboxes(candidates)
-    else:
-        target_bboxes = grasps_to_bboxes(candidates)
+    output_bbox = grasps_to_bboxes(output[None, :, :])[0]
+    target_bboxes = grasps_to_bboxes(candidates[None, :, :])[0]
     
     if not type(img) == np.ndarray:
         img_bgr = denormalize_img(img)
@@ -278,12 +276,14 @@ def get_grasp_map(img, output, candidates, vis_model=True, vis_truth=True):
         img_bgr = img
     
     if vis_model:
+        # print("boxs")
+        # print(output_bbox)
         for bbox in output_bbox:
             draw_bbox(img_bgr, bbox, (255, 0, 0), 1)
     if vis_truth:
         for bbox in target_bboxes:
             # Choose some 20% random bboxes to show:
-            if random.randint(0, 5) == 0:
+            if random.randint(0, 100) == 0:
                 draw_bbox(img_bgr, bbox, (255, 255, 255), 1)
 
     return img_bgr

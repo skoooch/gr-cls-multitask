@@ -23,7 +23,7 @@ def map2grasp(map):
             grasp_h = map[i][j][4] / 2 + 0.5
             grasp = (grasp_x, grasp_y, grasp_theta, grasp_w, grasp_h)
             grasp_candidates.add(grasp)
-
+    
     grasp_candidates = torch.tensor(list(grasp_candidates))
     return grasp_candidates
 
@@ -58,7 +58,8 @@ def grasps_to_bboxes(grasps):
     theta = torch.deg2rad(grasps[:, :,2] * 180 - 90)
     w = grasps[:, :, 3] * 1024
     h = grasps[:, :, 4] * 100
-    
+    # print("box")
+    # print((x, y, theta, w, h))
     x1 = x -w/2*torch.cos(theta) +h/2*torch.sin(theta)
     y1 = y -w/2*torch.sin(theta) -h/2*torch.cos(theta)
     x2 = x +w/2*torch.cos(theta) +h/2*torch.sin(theta)
@@ -87,7 +88,7 @@ def single_grasp_to_bboxes(grasps):
     y3 = y +w/2*torch.sin(theta) +h/2*torch.cos(theta)
     x4 = x -w/2*torch.cos(theta) -h/2*torch.sin(theta)
     y4 = y -w/2*torch.sin(theta) +h/2*torch.cos(theta)
-    bboxes = torch.stack((x1, y1, x2, y2, x3, y3, x4, y4), 2)
+    bboxes = torch.cat((x1.reshape(1), y1.reshape(1), x2.reshape(1), y2.reshape(1), x3.reshape(1), y3.reshape(1), x4.reshape(1), y4.reshape(1)),0)
     return bboxes
 
 
@@ -123,6 +124,9 @@ def get_correct_grasp_preds(output, target):
                     break
             # Catch value error caused by invalid box (i.e. model not outputing valid box)
             try:
+                # print("eval")
+                # print(bbox_outputs[i])
+                # print(bbox_targets[i])
                 iou = box_iou(bbox_outputs[i][j], bbox_targets[i][j])
             except ValueError:
                 break
