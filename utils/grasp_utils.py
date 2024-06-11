@@ -53,12 +53,31 @@ def bboxes_to_grasps(bboxes):
 def grasps_to_bboxes(grasps):
     """Converts grasp boxes to bounding boxes."""
     # convert grasp representation to bbox
-    print(grasps)
     x = grasps[:, :, 0] * 1024
     y = grasps[:, :, 1] * 1024
     theta = torch.deg2rad(grasps[:, :,2] * 180 - 90)
     w = grasps[:, :, 3] * 1024
     h = grasps[:, :, 4] * 100
+    
+    x1 = x -w/2*torch.cos(theta) +h/2*torch.sin(theta)
+    y1 = y -w/2*torch.sin(theta) -h/2*torch.cos(theta)
+    x2 = x +w/2*torch.cos(theta) +h/2*torch.sin(theta)
+    y2 = y +w/2*torch.sin(theta) -h/2*torch.cos(theta)
+    x3 = x +w/2*torch.cos(theta) -h/2*torch.sin(theta)
+    y3 = y +w/2*torch.sin(theta) +h/2*torch.cos(theta)
+    x4 = x -w/2*torch.cos(theta) -h/2*torch.sin(theta)
+    y4 = y -w/2*torch.sin(theta) +h/2*torch.cos(theta)
+    bboxes = torch.stack((x1, y1, x2, y2, x3, y3, x4, y4), 2)
+    return bboxes
+
+def single_grasp_to_bboxes(grasps):
+    """Converts grasp boxes to bounding boxes."""
+    # convert grasp representation to bbox
+    x = grasps[0] * 1024
+    y = grasps[1] * 1024
+    theta = torch.deg2rad(grasps[2] * 180 - 90)
+    w = grasps[3] * 1024
+    h = grasps[4] * 100
     
     x1 = x -w/2*torch.cos(theta) +h/2*torch.sin(theta)
     y1 = y -w/2*torch.sin(theta) -h/2*torch.cos(theta)
