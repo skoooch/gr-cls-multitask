@@ -28,7 +28,7 @@ Classification Accuracies - Training: 98.53 - Test: 89.25
 ## multiAlexMap_top5_v1.3
 Size of divergent heads: 4 layers
 
-Epochs: 135
+Epochs: 130
 
 Batch Size: 5
 
