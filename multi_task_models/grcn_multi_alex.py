@@ -62,28 +62,47 @@ class Multi_AlexnetMap_v3(nn.Module):
             nn.ReLU(inplace=True),
             nn.Dropout(0.3),
             
+            
+        )
+        self.grasp = nn.Sequential(
             nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2),
             nn.ReLU(inplace=True),
             nn.Conv2d(32, 32, kernel_size=5, padding=2),
             nn.ReLU(inplace=True),
             nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1),
-            nn.ReLU(inplace=True)
-        )
-        self.grasp = nn.Sequential(
+            nn.ReLU(inplace=True),
             nn.ConvTranspose2d(16, 5, kernel_size=11, stride=4, output_padding=1),
             nn.Tanh()
         )
 
         self.grasp_confidence = nn.Sequential(
+            nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, kernel_size=5, padding=2),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(inplace=True),
             nn.ConvTranspose2d(16, 1, kernel_size=11, stride=4, output_padding=1),
             nn.Sigmoid()
         )
         self.cls = nn.Sequential(
+            nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, kernel_size=5, padding=2),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(inplace=True),
             nn.ConvTranspose2d(16, 5, kernel_size=11, stride=4, output_padding=1),
             nn.Tanh()
         )
 
         self.cls_confidence = nn.Sequential(
+            nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 32, kernel_size=5, padding=2),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(32, 16, kernel_size=3, stride=2, padding=1, output_padding=1),
+            nn.ReLU(inplace=True),
             nn.ConvTranspose2d(16, 1, kernel_size=11, stride=4, output_padding=1),
             nn.Sigmoid()
         )
