@@ -35,22 +35,21 @@ params = Params()
 
 model_name = params.MODEL_NAME
 weights_dir = params.MODEL_PATH
-for epoch in range(111, 112):
-    weights_path = os.path.join(weights_dir, model_name, model_name + '_epoch%s.pth' % epoch)
+weights_path = os.path.join(weights_dir, model_name, model_name + '_final.pth')
 
-    # AlexNet with 1st, 2nd layer pretrained on Imagenet
-    model =  Multi_AlexnetMap_v3().to('cuda')
-    model.load_state_dict(torch.load(weights_path))
-    model.eval()
-    # Get test acc for CLS model
-    #c_accuracy, c_loss = get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None)
-    # Get test acc for Grasp model
-    #accuracy, loss = get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None)
+# AlexNet with 1st, 2nd layer pretrained on Imagenet
+model =  Multi_AlexnetMap_v3().to('cuda')
+model.load_state_dict(torch.load(weights_path))
+model.eval()
+# Get test acc for CLS model
+c_accuracy, c_loss = get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None)
+# Get test acc for Grasp model
+accuracy, loss = get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None)
 
-    #print('Grasp: %s' % epoch, accuracy, loss)
-    #print('CLS: %s' % epoch, c_accuracy, c_loss)
-    
-    # Visualize CLS predictions one by one
-    #visualize_cls(model)
-    # Visualize grasp predictions one by one
-    visualize_grasp(model)
+print('Grasp: %s' % accuracy, loss)
+print('CLS: %s' % c_accuracy, c_loss)
+
+# Visualize CLS predictions one by one
+visualize_cls(model)
+# Visualize grasp predictions one by one
+visualize_grasp(model)
