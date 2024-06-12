@@ -1,4 +1,5 @@
 *.pth
+!*final.pth
 *.obj
 *__pycache__/
 *.npy
