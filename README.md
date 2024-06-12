@@ -32,9 +32,9 @@ Epochs: 135
 
 Batch Size: 5
 
-Grasp Accuracies - Training: 78.7 - Test: 79.5
+Grasp Accuracies - Training: 79.95 - Test: 79.5
 
-Classification Accuracies - Training: 84.2 - Test: 82.75
+Classification Accuracies - Training: 98.17 - Test: 82.75
 
 # Instructions
 The following 
