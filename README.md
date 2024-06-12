@@ -24,3 +24,17 @@ Batch Size: 2
 Grasp Accuracies - Training: 72.4 - Test: 67.0
 
 Classification Accuracies - Training: 98.53 - Test: 89.25
+
+## multiAlexMap_top5_v1.2
+Size of divergent heads: 4 layers
+
+Epochs: 150
+
+Batch Size: 5
+
+Grasp Accuracies - Training: IPR - Test: IPR
+
+Classification Accuracies - Training: IPR - Test: IPR
+
+# Instructions
+The following 
