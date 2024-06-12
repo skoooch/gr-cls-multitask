@@ -111,7 +111,6 @@ def get_correct_grasp_preds(output, target):
     """
     bbox_outputs = grasps_to_bboxes(output)
     bbox_targets = grasps_to_bboxes(target)
-
     pre_theta = output[:, :, 2] * 180 - 90
     target_theta = target[:, :, 2] * 180 - 90
     angle_diff = torch.abs(pre_theta - target_theta)

@@ -50,6 +50,6 @@ print('Grasp: %s' % accuracy, loss)
 print('CLS: %s' % c_accuracy, c_loss)
 
 # Visualize CLS predictions one by one
-visualize_cls(model)
+#visualize_cls(model)
 # Visualize grasp predictions one by one
-visualize_grasp(model)
+#visualize_grasp(model)

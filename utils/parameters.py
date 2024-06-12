@@ -18,7 +18,7 @@ class Params:
         #self.MODEL_NAME = 'alexnetMap_cls_top5_v3.2.2'
         #self.MODEL_NAME = 'grConvMap_cls_top5_v1.0'
         # Grasp name format
-        self.MODEL_NAME = 'multiAlexMap_top5_v1.1'
+        self.MODEL_NAME = 'multiAlexMap_top5_v1.3'
 
         self.CLS_MODEL_NAME = 'alexnetMap_cls_top5_v3.2.2'
         self.GRASP_MODEL_NAME = 'alexnetMap_grasp_top5_v3.2.2'
