@@ -25,20 +25,29 @@ params = Params()
 
 def get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None, device=params.DEVICE):
     """Returns the test accuracy and loss of a CLS model."""
-    data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
     loss = 0
     correct = 0
     total = 0
-    for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
-        if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
-            break
-        output = model(img, is_grasp=False)
-        batch_correct, batch_total = get_correct_cls_preds_from_map(output, label)
-        correct += batch_correct
-        total += batch_total
-    
+    if(dataset == params.TEST_PATH):
+        data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
+        for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
+            if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
+                break
+            output = model(img, is_grasp=False)
+            batch_correct, batch_total = get_correct_cls_preds_from_map(output, label)
+            correct += batch_correct
+            total += batch_total
+    else:
+        data_loader = DataLoader(dataset, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT, seed=seed)
+        for i, (img, cls_map, label) in enumerate(data_loader.load_batch()):
+            if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
+                break
+            output = model(img, is_grasp=False)
+            batch_correct, batch_total = get_correct_cls_preds_from_map(output, label)
+            correct += batch_correct
+            total += batch_total
     accuracy = get_acc(correct, total)
-
+    print(accuracy)
     return accuracy, round(loss / total, 3)
 
 
@@ -47,27 +56,41 @@ def get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH
     loss = 0
     correct = 0
     total = 0
-    data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
+    if(dataset == params.TEST_PATH):
+        data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
+        for i, (img, map, candidates) in enumerate(data_loader.load_grasp()):
+            if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
+                break
+            output = model(img, is_grasp=True)
+            # Move grasp channel to the end
+            output = torch.moveaxis(output, 1, -1)
+            # Denoramlize grasps
+            denormalize_grasp(output)
 
-    #for (img, cls_map, label) in data_loader.load_cls():
-    for i, (img, map, candidates) in enumerate(data_loader.load_grasp()):
-        if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
-            break
-        output = model(img, is_grasp=True)
-        # Move grasp channel to the end
-        output = torch.moveaxis(output, 1, -1)
-        # Denoramlize grasps
-        denormalize_grasp(output)
+            # Convert grasp map into single grasp prediction
+            output_grasp = map2singlegrasp(output)
+            output_grasp = torch.unsqueeze(output_grasp, dim=1).repeat(1, candidates.shape[0], 1)
+            batch_correct, batch_total =  get_correct_grasp_preds(output_grasp, candidates[None, :, :]) #get_correct_grasp_preds_from_map(output, map)
+            correct += batch_correct
+            total += batch_total
 
-        # Convert grasp map into single grasp prediction
-        output_grasp = map2singlegrasp(output)
-        output_grasp = torch.unsqueeze(output_grasp, dim=1).repeat(1, candidates.shape[0], 1)
-        batch_correct, batch_total =  get_correct_grasp_preds(output_grasp, candidates[None, :, :]) #get_correct_grasp_preds_from_map(output, map)
-        correct += batch_correct
-        total += batch_total
+    else:
+        data_loader = DataLoader(dataset, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT, seed=seed)
+        for i, (img, map, candidates) in enumerate(data_loader.load_grasp_batch()):
+            if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
+                break
+            output = model(img, is_grasp=True)
+            # Move grasp channel to the end
+            output = torch.moveaxis(output, 1, -1)
+            # Denoramlize grasps
+            denormalize_grasp(output)
 
-        # Uncomment if visualize grasp for one instance
-        #plot_grasp(img, output_grasp, candidates)
+            # Convert grasp map into single grasp prediction
+            output_grasp = map2singlegrasp(output)
+            output_grasp = torch.unsqueeze(output_grasp, dim=1).repeat(1, candidates.shape[1], 1)
+            batch_correct, batch_total =  get_correct_grasp_preds(output_grasp, candidates) #get_correct_grasp_preds_from_map(output, map)
+            correct += batch_correct
+            total += batch_total
     
     accuracy = get_acc(correct, total)
 
