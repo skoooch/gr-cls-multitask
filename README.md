@@ -12,7 +12,7 @@ Batch Size: 5
 
 Grasp Accuracies - Training: 72.22 - Test: 75.75
 
-Classification Accuracies - Training: 98.5 - Test: 82.75
+Classification Accuracies - Training: 98.5 - Test: 85.5
 
 ## multiAlexMap_top5_v1.2
 Size of divergent heads: 1 layer
