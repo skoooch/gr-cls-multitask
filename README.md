@@ -40,6 +40,7 @@ Classification Accuracies - Training: 98.17 - Test: 82.75
 Size of divergent heads: 4 layers
 
 Weighted Loss Ratio (Grasp : Classification): 0.5 : 1.5 
+
 Epochs: 150
 
 Batch Size: 5
