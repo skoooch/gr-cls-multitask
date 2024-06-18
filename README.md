@@ -36,5 +36,17 @@ Grasp Accuracies - Training: 79.95 - Test: 79.5
 
 Classification Accuracies - Training: 98.17 - Test: 82.75
 
+## multiAlexMap_top5_v1.4
+Size of divergent heads: 4 layers
+
+Weighted Loss Ratio (Grasp : Classification): 0.5 : 1.5 
+Epochs: 150
+
+Batch Size: 5
+
+Grasp Accuracies - Training: 77.9 - Test: 75.5
+
+Classification Accuracies - Training: 97.98 - Test: 84.5
+
 # Instructions
 The following 
