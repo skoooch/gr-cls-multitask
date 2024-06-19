@@ -42,9 +42,9 @@ model =  Multi_AlexnetMap_v3().to('cuda')
 model.load_state_dict(torch.load(weights_path))
 model.eval()
 # Get test acc for CLS model
-c_accuracy, c_loss = get_cls_acc(model, include_depth=True, seed=None, dataset=params.TRAIN_PATH, truncation=None)
+c_accuracy, c_loss = get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None)
 # Get test acc for Grasp model
-accuracy, loss = get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TRAIN_PATH, truncation=None)
+accuracy, loss = get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None)
 
 print('Grasp: %s' % accuracy, loss)
 print('CLS: %s' % c_accuracy, c_loss)

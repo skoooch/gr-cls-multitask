@@ -107,7 +107,7 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
         output_grp = model(img_grp, is_grasp=True)
         loss_grp = MapLoss(output_grp, map_grp)
         # Loss fn for CLS/Grasp training
-        loss = loss_grp + loss_cls
+        loss = (params.loss_weight)*loss_grp + (2 - params.loss_weight) * loss_cls
         # Distillation loss (experimental)
         #distill_loss = DistillationLoss(img, model, pretrained_alexnet, model_s_type='alexnetMap', model_t_type='alexnet')
         #loss = loss + distill_loss * params.DISTILL_ALPHA
