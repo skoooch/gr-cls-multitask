@@ -18,7 +18,7 @@ class Params:
         #self.MODEL_NAME = 'alexnetMap_cls_top5_v3.2.2'
         #self.MODEL_NAME = 'grConvMap_cls_top5_v1.0'
         # Grasp name format
-        self.MODEL_NAME = 'multiAlexMap_top5_v1.3'
+        self.MODEL_NAME = 'multiAlexMap_top5_v1.5'
 
         self.CLS_MODEL_NAME = 'alexnetMap_cls_top5_v3.2.2'
         self.GRASP_MODEL_NAME = 'alexnetMap_grasp_top5_v3.2.2'
@@ -51,6 +51,7 @@ class Params:
         self.LABEL_FILE = 'cls_top_5.txt'
 
         self.MODEL_PATH = 'trained-models'
+        self.MODEL_WEIGHT_PATH = 'trained-models/%s/%s_final.pth' % (self.MODEL_NAME, self.MODEL_NAME)
         self.CLS_MODEL_PATH = 'trained-models/%s/%s_epoch%s.pth' % (self.CLS_MODEL_NAME, self.CLS_MODEL_NAME, self.EPOCHS)
         self.GRASP_MODEL_PATH = 'trained-models/%s/%s_epoch%s.pth' % (self.GRASP_MODEL_NAME, self.GRASP_MODEL_NAME, self.EPOCHS)
 
