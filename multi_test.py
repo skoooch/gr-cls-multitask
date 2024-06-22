@@ -35,7 +35,7 @@ params = Params()
 
 model_name = params.MODEL_NAME
 weights_dir = params.MODEL_PATH
-weights_path = os.path.join(weights_dir, model_name, model_name + '_final.pth')
+weights_path = os.path.join(weights_dir, model_name, model_name + '_epoch154.pth')
 
 # AlexNet with 1st, 2nd layer pretrained on Imagenet
 model =  Multi_AlexnetMap_v3().to('cuda')
