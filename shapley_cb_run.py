@@ -8,9 +8,9 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 
-import inference.models.alexnet as models
-from evaluation import get_cls_acc, get_grasp_acc
-from parameters import Params
+from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
+from training.single_task.evaluation import get_cls_acc, get_grasp_acc
+from utils.parameters import Params
 
 params = Params()
 
@@ -41,11 +41,13 @@ def one_iteration(
     device='cuda',
     chosen_players=None,
     metric='accuracy', 
-    task='cls'):
+    task='cls',
+    other_model=None):
     '''One iteration of Neuron-Shapley algoirhtm.'''
     if chosen_players is None:
         chosen_players = np.arange(len(c.keys()))
-    
+    print(c)
+    print(chosen_players)
     # Original performance of the model with all players present.
     init_val = get_acc(model, task=task, device=device)
 
@@ -63,11 +65,11 @@ def one_iteration(
     for idx in idxs:
         if idx in chosen_players:
             removing_players.append(players[c[idx]])
-            partial_model = remove_players(model, layer, removing_players)     
-
+            partial_model = remove_players(other_model, layer, removing_players)     
             new_val = get_acc(partial_model, task=task, device=device)
             marginals[c[idx]] = old_val - new_val
             old_val = new_val
+            
             
             if metric == 'accuracy' and new_val <= truncation:
                 truncation_counter += 1
@@ -113,7 +115,7 @@ class TensorID:
 
 
 def get_model(model_path, device=params.DEVICE):
-    model = models.AlexnetMap_v3().to(device)
+    model = Multi_AlexnetMap_v3().to(device)
     model.load_state_dict(torch.load(model_path))
     model.eval()
 
@@ -168,12 +170,8 @@ METRIC = 'accuracy'
 TRUNCATION_ACC = 50.
 DEVICE = sys.argv[1]
 DIR = 'shap'
-if TASK == 'cls':
-    MODEL_NAME = params.CLS_MODEL_NAME
-    MODEL_PATH = params.CLS_MODEL_PATH
-elif TASK == 'grasp':
-    MODEL_NAME = params.GRASP_MODEL_NAME
-    MODEL_PATH = params.GRASP_MODEL_PATH
+MODEL_NAME = params.MODEL_NAME
+MODEL_PATH = params.MODEL_WEIGHT_PATH
 
 PARALLEL_INSTANCE = sys.argv[2]
 
@@ -191,6 +189,7 @@ if run_name not in os.listdir(DIR):
 ## Load Model and get weights
 model = get_model(MODEL_PATH, DEVICE)
 weights, bias = get_weights(model, LAYER)
+weights = weights[:-2]
 ## Instantiate or load player list
 players = get_players(run_dir, weights)
 # Instantiate tmab logs
@@ -221,7 +220,8 @@ while True:
         device=DEVICE,
         chosen_players=chosen_players,
         metric=METRIC,
-        task=TASK
+        task=TASK,
+        other_model=model
     )
 
     mem_tmc = np.concatenate([mem_tmc, vals])
