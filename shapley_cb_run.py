@@ -211,7 +211,6 @@ while True:
             break
     else:
         chosen_players = None
-        
     idxs, vals =  one_iteration(
         copy.deepcopy(model),
         LAYER, 
