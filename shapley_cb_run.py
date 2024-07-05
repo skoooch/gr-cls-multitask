@@ -21,16 +21,14 @@ def remove_players(model: nn.Module, layer: str, removed_idx: list) -> nn.Module
     Silenced weights are replaced by the mean weights of other functional weights
     """
     # Update new weights onto new model
+    print(removed_idx)
     with torch.no_grad():
         for name, W in model.named_parameters():
             if name == layer+'.weight' or name == layer+'.bias':           
                 # Calculate mean non-removed weight
                 keeping_idx = [i for i in range(W.data.shape[0]) if i not in removed_idx]
                 w_mean = torch.mean(W.data[keeping_idx], dim=0)
-                print("mean = ")
-                print(w_mean)
-                print("old data = ")
-                print(W.data[removed_idx])
+
                 W.data[removed_idx] = w_mean
 
     return model
