@@ -28,9 +28,9 @@ def remove_players(model: nn.Module, layer: str, removed_idx: list) -> nn.Module
                 # Calculate mean non-removed weight
                 keeping_idx = [i for i in range(W.data.shape[0]) if i not in removed_idx]
                 w_mean = torch.mean(W.data[keeping_idx], dim=0)
-
                 W.data[removed_idx] = w_mean
-
+                print(W.data[remove_players])
+                
     return model
         
 
@@ -67,7 +67,11 @@ def one_iteration(
     for idx in idxs:
         if idx in chosen_players:
             removing_players.append(players[c[idx]])
-            partial_model = remove_players(other_model, layer, removing_players)     
+            partial_model = remove_players(other_model, layer, removing_players)
+            for name, W in partial_model.named_parameters():
+                if name == layer+'.weight' or name == layer+'.bias':           
+                    # Calculate mean non-removed weight
+                    print(W.data[remove_players])     
             new_val = get_acc(partial_model, task=task, device=device)
             marginals[c[idx]] = old_val - new_val
             old_val = new_val
