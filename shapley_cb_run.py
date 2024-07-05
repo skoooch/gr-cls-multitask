@@ -29,6 +29,7 @@ def remove_players(model: nn.Module, layer: str, removed_idx: list) -> nn.Module
                 keeping_idx = [i for i in range(W.data.shape[0]) if i not in removed_idx]
                 w_mean = torch.mean(W.data[keeping_idx], dim=0)
                 W.data[removed_idx] = w_mean
+                print(" within func = ")
                 print(W.data[removed_idx])
                 
     return model
