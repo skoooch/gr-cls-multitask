@@ -110,6 +110,7 @@ def get_correct_grasp_preds(output, target):
         - angle difference < 30
     """
     bbox_outputs = grasps_to_bboxes(output)
+
     bbox_targets = grasps_to_bboxes(target)
     pre_theta = output[:, :, 2] * 180 - 90
     target_theta = target[:, :, 2] * 180 - 90
