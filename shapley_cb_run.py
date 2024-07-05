@@ -21,17 +21,13 @@ def remove_players(model: nn.Module, layer: str, removed_idx: list) -> nn.Module
     Silenced weights are replaced by the mean weights of other functional weights
     """
     # Update new weights onto new model
-    print(removed_idx)
     with torch.no_grad():
         for name, W in model.named_parameters():
             if name == layer+'.weight' or name == layer+'.bias':           
                 # Calculate mean non-removed weight
                 keeping_idx = [i for i in range(W.data.shape[0]) if i not in removed_idx]
                 w_mean = torch.mean(W.data[keeping_idx], dim=0)
-                W.data[removed_idx] = w_mean
-                print(" within func = ")
-                print(W.data[removed_idx])
-                
+                W.data[removed_idx] = w_mean                
     return model
         
 
@@ -68,11 +64,7 @@ def one_iteration(
     for idx in idxs:
         if idx in chosen_players:
             removing_players.append(players[c[idx]])
-            partial_model = remove_players(other_model, layer, removing_players)
-            for name, W in partial_model.named_parameters():
-                if name == layer+'.weight' or name == layer+'.bias':           
-                    # Calculate mean non-removed weight
-                    print(W.data[removing_players])     
+            partial_model = remove_players(other_model, layer, removing_players) 
             new_val = get_acc(partial_model, task=task, device=device)
             marginals[c[idx]] = old_val - new_val
             old_val = new_val
@@ -171,8 +163,8 @@ def instantiate_tmab_logs(players, log_dir):
 
 # Experiment parameters
 SAVE_FREQ = 1
-TASK = 'grasp'
-LAYER = 'rgb_features.0'
+TASK = 'cls'
+LAYER = 'features.0'
 METRIC = 'accuracy'
 TRUNCATION_ACC = 50.
 DEVICE = sys.argv[1]
@@ -196,7 +188,7 @@ if run_name not in os.listdir(DIR):
 ## Load Model and get weights
 model = get_model(MODEL_PATH, DEVICE)
 weights, bias = get_weights(model, LAYER)
-weights = weights[:-2]
+# weights = weights[:-2]
 ## Instantiate or load player list
 players = get_players(run_dir, weights)
 # Instantiate tmab logs
