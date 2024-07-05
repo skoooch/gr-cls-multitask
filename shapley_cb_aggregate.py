@@ -42,7 +42,7 @@ def get_result(h5file):
 # Experiment parameters
 SAVE_FREQ = 1
 MODEL_NAME = params.MODEL_NAME
-LAYER = 'rgb_features.0'
+LAYER = 'features.0'
 METRIC = 'accuracy'
 TRUNCATION_ACC = 50.
 DEVICE = sys.argv[1]

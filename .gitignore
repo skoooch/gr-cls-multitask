@@ -10,7 +10,7 @@
 *_RGB.png
 *.zip
 dump
-*.png
+
 .DS*
 .ipynb_checkpoints
 .idea
