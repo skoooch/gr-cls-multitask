@@ -105,10 +105,8 @@ class DataLoader:
             img_angle = int(img_id_with_var.split('_')[-1])
             img_id = img_id_with_var.split('_')[-2]
             img_var = img_id_with_var.split('_')[0]
-            print(img_var)
             img_name = img_var + '_' + img_id
             img_cls = self.img_id_map[img_id_with_var]
-            print(img_cls)
             img_cls_idx = self.img_cls_list.index(img_cls)
             img_cls_idx = torch.tensor([img_cls_idx]).to(self.device)
 
