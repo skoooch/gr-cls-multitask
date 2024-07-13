@@ -49,7 +49,9 @@ class MDS:
         if p and Y.shape[1] >= p:
             return Y[:, :p], evals[:p]
         return Y, evals
-    
+    def two_mds(D,p=None):
+        my_scaler = manifold.MDS(n_jobs=-1, n_components=2)
+        return my_scaler.fit_transform(D)
     def three_mds(D,p=None):
         my_scaler = manifold.MDS(n_jobs=-1, n_components=3)
         return my_scaler.fit_transform(D)
@@ -115,32 +117,30 @@ num_images_per_label = len(activations[0])
 #                 label = cat)
 # ax.legend()
 # plt.savefig('vis/rsm/rgb_1_avr.png')    
-embedding = MDS.three_mds(result)
+embedding = MDS.two_mds(result)
 print(embedding)
 embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories
             for i, cat in enumerate(labels)}   
 
 
 fig = plt.figure()
-ax = fig.add_subplot(projection='3d')
+ax = fig.add_subplot()
 for cat in labels:
     ax.scatter(embedding[cat][:, 0],
                 embedding[cat][:, 1],
-                embedding[cat][:, 2],
                 label=cat)
 ax.legend()
 plt.title("Layer 1 of RGB_Features (euclidean)")
 plt.savefig('vis/rsm/rgb_3d_0_euclid.png')   
 plt.clf()
 fig = plt.figure()
-ax = fig.add_subplot(projection='3d')
+ax = fig.add_subplot()
 for cat in labels:
     avr_x = np.mean(embedding[cat][:, 0])
     avr_y = np.mean(embedding[cat][:, 1])
     avr_z = np.mean(embedding[cat][:, 2])
     ax.scatter(avr_x,
                 avr_y,
-                avr_z,
                 label=cat)
 ax.legend()
 plt.title("Layer 1 of RGB_Features (AVR) (euclidean)")
