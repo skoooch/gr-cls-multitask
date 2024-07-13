@@ -65,6 +65,7 @@ def get_activation(name):
     return hook
 
 
+
 LAYER = 'rgb_features.0'
 DEVICE = sys.argv[1]
 MODEL_NAME = params.MODEL_NAME
