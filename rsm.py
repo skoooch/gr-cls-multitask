@@ -77,7 +77,7 @@ activations = [[],[],[],[],[]]
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
 labels = data_loader.get_cls_id()
 for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
-    activations[label.item()].append(model.rgb_features[0](img))
+    activations[label.item()].append(model.rgb_features[0](img[:, :3, :, :]))
 activations_flat = []
 for i in range(5):
     for act in activations[i]:
