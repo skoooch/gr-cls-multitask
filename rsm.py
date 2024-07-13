@@ -88,7 +88,7 @@ for i in range(5):
         activations_flat.append(np.asarray(torch.flatten(act).cpu()))
 act_array = np.asarray(activations_flat, dtype="object")
 print(act_array.shape)
-result = squareform(pdist(act_array, metric = 'correlation'))
+result = squareform(pdist(act_array, metric = 'euclidean'))
 
 num_images_per_label = len(activations[0])
 # embedding = MDS.cmdscale(result, 2)[0]
@@ -124,14 +124,13 @@ embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # 
 fig = plt.figure()
 ax = fig.add_subplot(projection='3d')
 for cat in labels:
-    print(embedding[cat][:, 0])
     ax.scatter(embedding[cat][:, 0],
                 embedding[cat][:, 1],
                 embedding[cat][:, 2],
                 label=cat)
 ax.legend()
-plt.title("Layer 1 of RGB_Features")
-plt.savefig('vis/rsm/rgb_3d_0.png')   
+plt.title("Layer 1 of RGB_Features (euclidean)")
+plt.savefig('vis/rsm/rgb_3d_0_euclid.png')   
 plt.clf()
 fig = plt.figure()
 ax = fig.add_subplot(projection='3d')
@@ -144,5 +143,5 @@ for cat in labels:
                 avr_z,
                 label=cat)
 ax.legend()
-plt.title("Layer 2 of RGB_Features")
-plt.savefig('vis/rsm/rgb_3d_0_avr.png')
+plt.title("Layer 1 of RGB_Features (AVR) (euclidean)")
+plt.savefig('vis/rsm/rgb_3d_0_avr_euclid.png')
