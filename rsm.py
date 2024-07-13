@@ -77,7 +77,7 @@ activations = [[],[],[],[],[]]
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
 labels = data_loader.get_cls_id()
 for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
-    activations[label.item()].append(model.rgb_features[0](img[:, :3, :, :]))
+    activations[label.item()].append(model.rgb_features[1](model.rgb_features[0](img[:, :3, :, :])))
 activations_flat = []
 for i in range(5):
     for act in activations[i]:
@@ -98,7 +98,7 @@ for cat in labels:
                 embedding[cat][:, 1],
                 label = cat)
 ax.legend()
-plt.savefig('vis/rsm/rgb_0.png')    
+plt.savefig('vis/rsm/rgb_1.png')    
 plt.clf()
 ax = plt.gca()
 ax.set_xticks([])
@@ -110,4 +110,4 @@ for cat in labels:
                 avr_y,
                 label = cat)
 ax.legend()
-plt.savefig('vis/rsm/rgb_0_avr.png')    
+plt.savefig('vis/rsm/rgb_1_avr.png')    
