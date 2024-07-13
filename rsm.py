@@ -129,8 +129,7 @@ for cat in labels:
     ax.scatter(embedding[cat][:, 0],
                 embedding[cat][:, 1],
                 embedding[cat][:, 2],
-                label = cat)
-ax.legend()
+                label=cat)
 plt.savefig('vis/rsm/rgb_3d_0.png')    
 plt.clf()
 ax = plt.gca()
