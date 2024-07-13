@@ -82,7 +82,7 @@ for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
 activations_flat = []
 for i in range(5):
     for act in activations[i]:
-        activations_flat.append(torch.flatten(act).cpu())
+        activations_flat.append(np.asarray(torch.flatten(act).cpu()))
 act_array = np.asarray(activations_flat, dtype="object")
 print(act_array.shape)
 result = squareform(pdist(act_array, metric = 'correlation'))
