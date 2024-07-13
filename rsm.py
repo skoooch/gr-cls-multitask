@@ -121,25 +121,23 @@ embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # 
             for i, cat in enumerate(labels)}   
 
 
-ax = plt.gca()
-ax.set_xticks([])
-ax.set_yticks([])
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
 for cat in labels:
     print(embedding[cat][:, 0])
     ax.scatter(embedding[cat][:, 0],
                 embedding[cat][:, 1],
                 embedding[cat][:, 2],
                 label=cat)
-plt.savefig('vis/rsm/rgb_3d_0.png')    
+plt.savefig('vis/rsm/rgb_3d_0.png')   
 plt.clf()
-ax = plt.gca()
-ax.set_xticks([])
-ax.set_yticks([])
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
 for cat in labels:
     avr_x = np.mean(embedding[cat][:, 0])
     avr_y = np.mean(embedding[cat][:, 1])
+    avr_z = np.mean(embedding[cat][:, 2])
     ax.scatter(avr_x,
                 avr_y,
-                label = cat)
-ax.legend()
+                avr_z)
 plt.savefig('vis/rsm/rgb_3d_0_avr.png')
