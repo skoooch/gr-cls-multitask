@@ -70,10 +70,11 @@ DEVICE = sys.argv[1]
 MODEL_NAME = params.MODEL_NAME
 MODEL_PATH = params.MODEL_WEIGHT_PATH
 model = get_model(MODEL_PATH, DEVICE)
-labels = DataLoader.get_cls_id()
+
 model.rgb_features[0].register_forward_hook(get_activation(LAYER))
 activations = [[],[],[],[],[]]
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
+labels = data_loader.get_cls_id()
 for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
     model(img, is_grasp=False)
     activations[label.item()].append(activation[LAYER])
