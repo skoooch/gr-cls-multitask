@@ -77,7 +77,7 @@ activations = [[],[],[],[],[]]
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
 labels = data_loader.get_cls_id()
 for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
-    model(img, is_grasp=False)
+    model(img, is_grasp=True)
     activations[label.item()].append(activation[LAYER])
 activations_flat = []
 for i in range(5):
@@ -99,7 +99,7 @@ for cat in labels:
                 embedding[cat][:, 1],
                 label = cat)
 ax.legend()
-plt.savefig('vis/rsm/rgb_0_cls.png')    
+plt.savefig('vis/rsm/rgb_0_grasp.png')    
 plt.clf()
 ax = plt.gca()
 ax.set_xticks([])
@@ -111,4 +111,4 @@ for cat in labels:
                 avr_y,
                 label = cat)
 ax.legend()
-plt.savefig('vis/rsm/rgb_0_cls_avr.png')    
+plt.savefig('vis/rsm/rgb_0_grasp_avr.png')    
