@@ -100,3 +100,15 @@ for cat in labels:
                 label = cat)
 ax.legend()
 plt.savefig('vis/rsm/rgb_0_cls.png')    
+
+ax = plt.gca()
+ax.set_xticks([])
+ax.set_yticks([])
+for cat in labels:
+    avr_x = np.mean(embedding[cat][:, 0])
+    avr_y = np.mean(embedding[cat][:, 1])
+    ax.scatter(avr_x,
+                avr_y,
+                label = cat)
+ax.legend()
+plt.savefig('vis/rsm/rgb_0_cls_avr.png')    
