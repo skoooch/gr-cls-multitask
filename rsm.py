@@ -138,7 +138,6 @@ ax = fig.add_subplot()
 for cat in labels:
     avr_x = np.mean(embedding[cat][:, 0])
     avr_y = np.mean(embedding[cat][:, 1])
-    avr_z = np.mean(embedding[cat][:, 2])
     ax.scatter(avr_x,
                 avr_y,
                 label=cat)
