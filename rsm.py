@@ -32,5 +32,6 @@ model = get_model(MODEL_PATH, DEVICE)
 model.rgb_features[0].register_forward_hook(get_activation(LAYER))
 
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
-for i, (img, cls_map, label) in enumerate(data_loader.load_batch()):
-    print(len(model(img, is_grasp=False)))
+for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
+    model(img, is_grasp=False)
+    print(label)
