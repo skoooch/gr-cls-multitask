@@ -5,7 +5,7 @@ import matplotlib.pylab as plt
 from tqdm import tqdm
 import sys
 from scipy.spatial.distance import squareform, pdist
-
+from sklearn import manifold, datasets
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from data_processing.data_loader_v2 import DataLoader
 from utils.parameters import Params
@@ -50,6 +50,10 @@ class MDS:
             return Y[:, :p], evals[:p]
         return Y, evals
     
+    def three_mds(D,p=None):
+        my_scaler = manifold.MDS(n_jobs=-1, n_components=3)
+        return my_scaler.fit_transform(D)
+    
 params = Params()
 activation = {}
 
@@ -87,7 +91,31 @@ print(act_array.shape)
 result = squareform(pdist(act_array, metric = 'correlation'))
 
 num_images_per_label = len(activations[0])
-embedding = MDS.cmdscale(result, 2)[0]
+# embedding = MDS.cmdscale(result, 2)[0]
+# embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories
+#             for i, cat in enumerate(labels)}   
+# ax = plt.gca()
+# ax.set_xticks([])
+# ax.set_yticks([])
+# for cat in labels:
+#     ax.scatter(embedding[cat][:, 0],
+#                 embedding[cat][:, 1],
+#                 label = cat)
+# ax.legend()
+# plt.savefig('vis/rsm/rgb_1.png')    
+# plt.clf()
+# ax = plt.gca()
+# ax.set_xticks([])
+# ax.set_yticks([])
+# for cat in labels:
+#     avr_x = np.mean(embedding[cat][:, 0])
+#     avr_y = np.mean(embedding[cat][:, 1])
+#     ax.scatter(avr_x,
+#                 avr_y,
+#                 label = cat)
+# ax.legend()
+# plt.savefig('vis/rsm/rgb_1_avr.png')    
+embedding = MDS.three_mds(result)
 embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories
             for i, cat in enumerate(labels)}   
 ax = plt.gca()
@@ -98,7 +126,7 @@ for cat in labels:
                 embedding[cat][:, 1],
                 label = cat)
 ax.legend()
-plt.savefig('vis/rsm/rgb_1.png')    
+plt.savefig('vis/rsm/rgb_3d_1.png')    
 plt.clf()
 ax = plt.gca()
 ax.set_xticks([])
@@ -110,4 +138,4 @@ for cat in labels:
                 avr_y,
                 label = cat)
 ax.legend()
-plt.savefig('vis/rsm/rgb_1_avr.png')    
+plt.savefig('vis/rsm/rgb_1_3d_avr.png')
