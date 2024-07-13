@@ -35,3 +35,4 @@ data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_S
 for i, (img, cls_map, label) in enumerate(data_loader.load_batch()):
     model(img)
     print(activation[LAYER])
+    break
