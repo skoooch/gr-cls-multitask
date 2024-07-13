@@ -116,8 +116,11 @@ num_images_per_label = len(activations[0])
 # ax.legend()
 # plt.savefig('vis/rsm/rgb_1_avr.png')    
 embedding = MDS.three_mds(result)
+print(embedding)
 embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories
             for i, cat in enumerate(labels)}   
+
+print(embedding)
 ax = plt.gca()
 ax.set_xticks([])
 ax.set_yticks([])
