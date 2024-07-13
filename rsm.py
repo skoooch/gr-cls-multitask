@@ -130,6 +130,7 @@ for cat in labels:
                 embedding[cat][:, 2],
                 label=cat)
 ax.legend()
+plt.title("Layer 1 of RGB_Features")
 plt.savefig('vis/rsm/rgb_3d_0.png')   
 plt.clf()
 fig = plt.figure()
@@ -143,4 +144,5 @@ for cat in labels:
                 avr_z,
                 label=cat)
 ax.legend()
+plt.title("Layer 2 of RGB_Features")
 plt.savefig('vis/rsm/rgb_3d_0_avr.png')
