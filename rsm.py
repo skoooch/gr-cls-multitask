@@ -98,4 +98,5 @@ for cat in labels:
     ax.scatter(embedding[cat][:, 0],
                 embedding[cat][:, 1],
                 label = cat)
+ax.legend()
 plt.savefig('vis/rsm/rgb_0_cls.png')    
