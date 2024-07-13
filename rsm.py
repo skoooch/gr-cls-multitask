@@ -110,4 +110,4 @@ for cat in labels:
                 avr_y,
                 label = cat)
 ax.legend()
-plt.savefig('vis/rsm/rgb_0.png')    
+plt.savefig('vis/rsm/rgb_0_avr.png')    
