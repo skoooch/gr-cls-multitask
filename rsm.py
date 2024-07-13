@@ -120,11 +120,12 @@ print(embedding)
 embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories
             for i, cat in enumerate(labels)}   
 
-print(embedding[cat][:, 0])
+
 ax = plt.gca()
 ax.set_xticks([])
 ax.set_yticks([])
 for cat in labels:
+    print(embedding[cat][:, 0])
     ax.scatter(embedding[cat][:, 0],
                 embedding[cat][:, 1],
                 embedding[cat][:, 2],
