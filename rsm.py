@@ -36,3 +36,5 @@ for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
     model(img, is_grasp=False)
     activations[label.item()].append(activation[LAYER])
 print(activations)
+activations = [torch.stack(acts) if acts else torch.tensor([]) for acts in activations]
+print(activations)
