@@ -66,18 +66,18 @@ def get_activation(name):
 
 
 
-LAYER = 'rgb_features.0'
+LAYER = 'rgb_features.1'
 DEVICE = sys.argv[1]
 MODEL_NAME = params.MODEL_NAME
 MODEL_PATH = params.MODEL_WEIGHT_PATH
 model = get_model(MODEL_PATH, DEVICE)
 
-model.rgb_features[0].register_forward_hook(get_activation(LAYER))
+model.rgb_features[1].register_forward_hook(get_activation(LAYER))
 activations = [[],[],[],[],[]]
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
 labels = data_loader.get_cls_id()
 for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
-    model(img, is_grasp=True)
+    model(img, is_grasp=False)
     activations[label.item()].append(activation[LAYER])
 activations_flat = []
 for i in range(5):
@@ -99,7 +99,7 @@ for cat in labels:
                 embedding[cat][:, 1],
                 label = cat)
 ax.legend()
-plt.savefig('vis/rsm/rgb_0_grasp.png')    
+plt.savefig('vis/rsm/rgb_1_grasp.png')    
 plt.clf()
 ax = plt.gca()
 ax.set_xticks([])
@@ -111,4 +111,4 @@ for cat in labels:
                 avr_y,
                 label = cat)
 ax.legend()
-plt.savefig('vis/rsm/rgb_0_grasp_avr.png')    
+plt.savefig('vis/rsm/rgb_1_grasp_avr.png')    
