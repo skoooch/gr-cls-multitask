@@ -82,6 +82,7 @@ for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
 activations_flat = []
 for i in range(5):
     for act in activations[i]:
+        print(act)
         activations_flat.append(act)
 result = squareform(pdist(torch.Tensor.cpu(activations_flat), metric = 'correlation'))
 num_images_per_label = len(activations[0])
