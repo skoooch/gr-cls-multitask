@@ -90,7 +90,7 @@ result = squareform(pdist(act_array, metric = 'correlation'))
 num_images_per_label = len(activations[0])
 embedding = MDS.cmdscale(result, 2)[0]
 embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories
-            for i, cat in enumerate(DataLoader.get_cls_id())}   
+            for i, cat in enumerate(labels)}   
 ax = plt.gca()
 ax.set_xticks([])
 ax.set_yticks([])
