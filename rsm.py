@@ -35,6 +35,6 @@ data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_S
 for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
     model(img, is_grasp=False)
     activations[label.item()].append(activation[LAYER])
-print(activations)
-activations = [torch.stack(acts) if acts else torch.tensor([]) for acts in activations]
-print(activations)
+mean_activations = [torch.mean(torch.stack(act), dim=0) if act else None for act in activations]
+
+print(mean_activations)
