@@ -100,7 +100,7 @@ for cat in labels:
                 label = cat)
 ax.legend()
 plt.savefig('vis/rsm/rgb_0_cls.png')    
-
+plt.clf()
 ax = plt.gca()
 ax.set_xticks([])
 ax.set_yticks([])
