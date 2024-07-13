@@ -86,9 +86,9 @@ activations_flat = []
 for i in range(5):
     for act in activations[i]:
         activations_flat.append(np.asarray(torch.flatten(act).cpu()))
-act_array = np.asarray(activations_flat, dtype="object")
+act_array = np.asarray(activations_flat)
 print(act_array.shape)
-result = squareform(pdist(act_array, metric = 'euclidean'))
+result = squareform(pdist(act_array))
 
 num_images_per_label = len(activations[0])
 # embedding = MDS.cmdscale(result, 2)[0]
