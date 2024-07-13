@@ -129,6 +129,7 @@ for cat in labels:
                 embedding[cat][:, 1],
                 embedding[cat][:, 2],
                 label=cat)
+ax.legend()
 plt.savefig('vis/rsm/rgb_3d_0.png')   
 plt.clf()
 fig = plt.figure()
@@ -139,5 +140,7 @@ for cat in labels:
     avr_z = np.mean(embedding[cat][:, 2])
     ax.scatter(avr_x,
                 avr_y,
-                avr_z)
+                avr_z,
+                label=cat)
+ax.legend()
 plt.savefig('vis/rsm/rgb_3d_0_avr.png')
