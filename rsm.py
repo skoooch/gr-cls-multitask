@@ -129,19 +129,25 @@ for cat in labels:
     ax.scatter(embedding[cat][:, 0],
                 embedding[cat][:, 1],
                 label=cat)
+    
+for cat in labels:
+    for i in len(embedding[cat][:, 0]):
+        ax.text(embedding[cat][i, 0],
+                    embedding[cat][i, 1],
+                    label=i)
 ax.legend()
 plt.title("Layer 1 of RGB_Features (euclidean)")
-plt.savefig('vis/rsm/rgb_3d_0_euclid.png')   
-plt.clf()
-fig = plt.figure()
-ax = fig.add_subplot()
-for cat in labels:
-    avr_x = np.mean(embedding[cat][:, 0])
-    avr_y = np.mean(embedding[cat][:, 1])
-    avr_z = np.mean(embedding[cat][:, 2])
-    ax.scatter(avr_x,
-                avr_y,
-                label=cat)
-ax.legend()
-plt.title("Layer 1 of RGB_Features (AVR) (euclidean)")
-plt.savefig('vis/rsm/rgb_3d_0_avr_euclid.png')
+plt.savefig('vis/rsm/rgb_2d_0_euclid_labeled.png')   
+# plt.clf()
+# fig = plt.figure()
+# ax = fig.add_subplot()
+# for cat in labels:
+#     avr_x = np.mean(embedding[cat][:, 0])
+#     avr_y = np.mean(embedding[cat][:, 1])
+#     avr_z = np.mean(embedding[cat][:, 2])
+#     ax.scatter(avr_x,
+#                 avr_y,
+#                 label=cat)
+# ax.legend()
+# plt.title("Layer 1 of RGB_Features (AVR) (euclidean)")
+# plt.savefig('vis/rsm/rgb_3d_0_avr_euclid.png')
