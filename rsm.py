@@ -134,7 +134,7 @@ for cat in labels:
     for i in range(len(embedding[cat][:, 0])):
         ax.text(embedding[cat][i, 0],
                     embedding[cat][i, 1],
-                    label=i)
+                    i)
 ax.legend()
 plt.title("Layer 1 of RGB_Features (euclidean)")
 plt.savefig('vis/rsm/rgb_2d_0_euclid_labeled.png')   
