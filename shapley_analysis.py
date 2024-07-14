@@ -210,7 +210,6 @@ if __name__ == '__main__':
     players = get_players(run_dir)
     instatiate_chosen_players(run_dir, players)    
     results = get_results_list(run_dir)
+    plot_shapley_dist(players, results, 'grasp', layer)
 
-    plot_shapley_dist(players, results, model_type, layer)
-
-    plot_shapley_conf_trend(players, results, model_type, layer)
+    plot_shapley_conf_trend(players, results, 'grasp', layer)
