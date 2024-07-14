@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from utils.parameters import Params
 
 # Experiment parameters
-TYPES = ['cls', 'grasp']
+TYPES = ['cls']
 LAYERS = ['rgb_features.0', 'features.0']
 
 R = 100.
