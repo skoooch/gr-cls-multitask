@@ -7,7 +7,7 @@ from utils.parameters import Params
 
 # Experiment parameters
 TYPES = ['cls']
-LAYERS = ['rgb_features.0', 'features.0']
+LAYERS = ['rgb_features.0']
 
 R = 100.
 DELTA = 0.2
