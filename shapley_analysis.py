@@ -214,7 +214,7 @@ if __name__ == '__main__':
     #         plot_shapley_conf_trend(players, results, model_type, layer)
     model_type = 'grasp'
     model_name = params.MODEL_NAME
-    layer = 'rgb_feature.0'
+    layer = 'rgb_features.0'
 
     run_name = '%s_%s' % (model_name, layer)
     run_dir = os.path.join(DIR, run_name)
