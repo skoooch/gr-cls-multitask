@@ -203,13 +203,13 @@ if __name__ == '__main__':
     #     for layer in LAYERS:
     #         ## CB directory
     model_name = params.MODEL_NAME
-    for layer in ['rgb_features.0_no', 'rgb_features.0_grasp']
-    run_name = '%s_%s' % (model_name, layer)
-    run_dir = os.path.join(DIR, run_name)
+    for layer in ['rgb_features.0_no', 'rgb_features.0_grasp']:
+        run_name = '%s_%s' % (model_name, layer)
+        run_dir = os.path.join(DIR, run_name)
 
-    players = get_players(run_dir)
-    instatiate_chosen_players(run_dir, players)    
-    results = get_results_list(run_dir)
-    plot_shapley_dist(players, results, 'grasp', layer)
+        players = get_players(run_dir)
+        instatiate_chosen_players(run_dir, players)    
+        results = get_results_list(run_dir)
+        plot_shapley_dist(players, results, 'grasp', layer)
 
-    plot_shapley_conf_trend(players, results, 'grasp', layer)
+        plot_shapley_conf_trend(players, results, 'grasp', layer)
