@@ -131,7 +131,7 @@ for cat in labels:
                 label=cat)
     
 for cat in labels:
-    for i in len(embedding[cat][:, 0]):
+    for i in range(len(embedding[cat][:, 0])):
         ax.text(embedding[cat][i, 0],
                     embedding[cat][i, 1],
                     label=i)
