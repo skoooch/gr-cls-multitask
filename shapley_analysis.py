@@ -7,7 +7,7 @@ from utils.parameters import Params
 
 # Experiment parameters
 TYPES = ['cls', 'grasp']
-LAYERS = ['rgb_features.0']
+LAYERS = ['rgb_features.0', 'features.0']
 
 R = 100.
 DELTA = 0.2
@@ -211,4 +211,4 @@ if __name__ == '__main__':
 
             plot_shapley_dist(players, results, model_type, layer)
 
-            plot_shapley_conf_trend(players, results, model_type, layer)
+    #         plot_shapley_conf_trend(players, results, model_type, layer)
