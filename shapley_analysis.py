@@ -202,14 +202,27 @@ if __name__ == '__main__':
 
     #     for layer in LAYERS:
     #         ## CB directory
+    #         run_name = '%s_%s' % (model_name, layer)
+    #         run_dir = os.path.join(DIR, run_name)
+
+    #         players = get_players(run_dir)
+    #         instatiate_chosen_players(run_dir, players)    
+    #         results = get_results_list(run_dir)
+
+    #         plot_shapley_dist(players, results, model_type, layer)
+
+    #         plot_shapley_conf_trend(players, results, model_type, layer)
+    model_type = 'grasp'
     model_name = params.MODEL_NAME
-    for layer in ['rgb_features.0_no', 'rgb_features.0_grasp']:
-        run_name = '%s_%s' % (model_name, layer)
-        run_dir = os.path.join(DIR, run_name)
+    layer = 'rgb_feature.0'
 
-        players = get_players(run_dir)
-        instatiate_chosen_players(run_dir, players)    
-        results = get_results_list(run_dir)
-        plot_shapley_dist(players, results, 'grasp', layer)
+    run_name = '%s_%s' % (model_name, layer)
+    run_dir = os.path.join(DIR, run_name)
 
-        plot_shapley_conf_trend(players, results, 'grasp', layer)
+    players = get_players(run_dir)
+    instatiate_chosen_players(run_dir, players)    
+    results = get_results_list(os.path.join(run_dir, 'multiAlexMap_top5_v1.5_rgb_features.0_grasp.h5'))
+
+    plot_shapley_dist(players, results, model_type, layer)
+
+    plot_shapley_conf_trend(players, results, model_type, layer)
