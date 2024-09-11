@@ -7,7 +7,16 @@ Log into psych cluster
 
 navigate to `Desktop/ewan/gr-cls-multitask/`
 
+All python packages should already be installed on cluster (if not, install -r requirements.txt)
 
+Edit the values ``
+
+run `tmux` to start a tmux session (it will let you close the window and keep the program running \[does the same thing as `screen`\])
+
+run the command `srun -p gpu --gpus=1 --mem=\[X\] python3 shapley_cb_run.py cuda \[Y\]`
+
+X = amount of memory you want to allocate. As of right now, the cluster's gpu partition is fully in use, but you can decide this number based on how much ram is available
+Y = name
 
 ## multiAlexMap_top5_v1.5
 Size of divergent heads: 4 layers
