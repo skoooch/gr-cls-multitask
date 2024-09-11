@@ -9,14 +9,21 @@ navigate to `Desktop/ewan/gr-cls-multitask/`
 
 All python packages should already be installed on cluster (if not, install -r requirements.txt)
 
-Edit the values ``
-
+Edit the glabal values `LAYER` and `TASK` based on what you want to run shapley on. Currently these values are set to `features.0` and `cls`.
+ 
 run `tmux` to start a tmux session (it will let you close the window and keep the program running \[does the same thing as `screen`\])
 
 run the command `srun -p gpu --gpus=1 --mem=\[X\] python3 shapley_cb_run.py cuda \[Y\]`
 
 X = amount of memory you want to allocate. As of right now, the cluster's gpu partition is fully in use, but you can decide this number based on how much ram is available
-Y = name
+
+Y = name of the parallel instance for this layer/task combo. **Important**: this value **must be unique**. If there already exists an h5py file with the same instance name (this can be checked by looking value after the last underscore on the h5py files in a give layer/task's folder with the `shap` folder) it will be overwritten.
+
+To exit the tmux session, press `Ctrl+b` then type d.
+
+To reattach, simply type `tmux attach`.
+
+To run the shapley analysis, (ie make the plot) 
 
 ## multiAlexMap_top5_v1.5
 Size of divergent heads: 4 layers
