@@ -7,7 +7,7 @@ Log into psych cluster
 
 navigate to `Desktop/ewan/gr-cls-multitask/`
 
-All python packages should already be installed on cluster (if not, install -r requirements.txt)
+`cd foo` (the venv)
 
 Edit the glabal values `LAYER` and `TASK` based on what you want to run shapley on. Currently these values are set to `features.0` and `cls`.
  
