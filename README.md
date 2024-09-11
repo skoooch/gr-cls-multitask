@@ -2,6 +2,12 @@
 Multi-tasking model for grasping and classification (in progress)
 
 you can see the model architecture in [multi_task_models/grcn_multi_alex.py](multi_task_models/grcn_multi_alex.py) 
+# shapley instructions
+Log into psych cluster 
+
+navigate to `Desktop/ewan/gr-cls-multitask/`
+
+
 
 ## multiAlexMap_top5_v1.5
 Size of divergent heads: 4 layers
@@ -66,10 +72,3 @@ Classification Accuracies - Training: 98.5 - Test: 82.75
 
 
 
-
-
-
-
-
-# Instructions
-The following 
