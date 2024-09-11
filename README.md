@@ -7,7 +7,7 @@ Log into psych cluster
 
 navigate to `Desktop/ewan/gr-cls-multitask/`
 
-`cd foo` (the venv)
+Activate venv with `source foo/bin/activate`
 
 Edit the glabal values `LAYER` and `TASK` based on what you want to run shapley on. Currently these values are set to `features.0` and `cls`.
  
@@ -22,8 +22,7 @@ Y = name of the parallel instance for this layer/task combo. **Important**: this
 To exit the tmux session, press `Ctrl+b` then type d.
 
 To reattach, simply type `tmux attach`.
-
-To run the shapley analysis, (ie make the plot) 
+ 
 
 ## multiAlexMap_top5_v1.5
 Size of divergent heads: 4 layers
