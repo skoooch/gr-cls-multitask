@@ -271,7 +271,7 @@ class DataLoader:
 
         return grasp_list
 
-    def scan_img_id(self, verbose=True):
+    def scan_img_id(self, verbose=False):
         """
         Returns a dictionary mapping the image ids from the 'data' 
         folder to their corresponding classes.

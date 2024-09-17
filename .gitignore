@@ -8,9 +8,10 @@
 *_grasps.txt
 *.tiff
 *_RGB.png
+*.png
 *.zip
 dump
-
+.env/
 .DS*
 .ipynb_checkpoints
 .idea
