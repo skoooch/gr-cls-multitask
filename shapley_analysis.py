@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 from utils.parameters import Params
 
 # Experiment parameters
-TYPES = ['cls']
-LAYERS = ['rgb_features.0']
+TYPES = ['cls', 'grasp']
+LAYERS = ['rgb_features.0', 'features.0']
 
 R = 100.
 DELTA = 0.2
@@ -105,14 +105,21 @@ def plot_shapley_dist(players, results, model_type, layer):
     if 'shapley_dist' not in os.listdir('vis/shap'):
         os.mkdir(os.path.join('vis/shap', 'shapley_dist'))
 
-    squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
-
-    for result in results:
-        mem_tmc = get_result(result)
-        sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
-        squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
-        counts += np.sum(mem_tmc != -1, 0)
-
+    if layer == "features.0":
+        squares, sums, counts = [np.zeros(30) for _ in range(3)]
+        for result in results:
+            mem_tmc = get_result(result)[:, :30]
+            
+            sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
+            squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
+            counts += np.sum(mem_tmc != -1, 0)
+    else:
+        squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
+        for result in results:
+            mem_tmc = get_result(result)
+            sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
+            squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
+            counts += np.sum(mem_tmc != -1, 0)
     # No. of iterations for each neuron
     counts = np.clip(counts, 1e-12, None)
     print(counts)
@@ -202,7 +209,7 @@ if __name__ == '__main__':
 
         for layer in LAYERS:
             ## CB directory
-            run_name = '%s_%s' % (model_name, layer)
+            run_name = '%s_%s_%s' % (model_name, layer, model_type)
             run_dir = os.path.join(DIR, run_name)
 
             players = get_players(run_dir)

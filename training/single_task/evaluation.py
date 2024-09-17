@@ -47,7 +47,6 @@ def get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, 
             correct += batch_correct
             total += batch_total
     accuracy = get_acc(correct, total)
-    print(accuracy)
     return accuracy, round(loss / total, 3)
 
 
