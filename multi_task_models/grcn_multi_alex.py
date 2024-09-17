@@ -125,7 +125,7 @@ class Multi_AlexnetMap_v3(nn.Module):
             if isinstance(m, (nn.ConvTranspose2d)):
                 nn.init.xavier_uniform_(m.weight, gain=1)
 
-    def forward(self, x, is_grasp):
+    def forward(self, x, is_grasp=True):
         rgb = x[:, :3, :, :]
         d = torch.unsqueeze(x[:, 3, :, :], dim=1)
         d = torch.cat((d, d, d), dim=1)

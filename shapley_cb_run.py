@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from tqdm import tqdm
-
+from torchsummary import summary
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from training.single_task.evaluation import get_cls_acc, get_grasp_acc
 from utils.parameters import Params
@@ -59,13 +59,14 @@ def one_iteration(
     truncation_counter = 0
     old_val = init_val
 
-    pbar = tqdm(total=len(idxs))
     removing_players = []
     for idx in idxs:
+        print(idx)
         if idx in chosen_players:
             removing_players.append(players[c[idx]])
             partial_model = remove_players(other_model, layer, removing_players) 
             new_val = get_acc(partial_model, task=task, device=device)
+            print(new_val)
             marginals[c[idx]] = old_val - new_val
             old_val = new_val
             
@@ -81,9 +82,6 @@ def one_iteration(
             partial_model = remove_players(model, layer, removing_players)      
             new_val = get_acc(partial_model, task=task, device=device)
             old_val = new_val
-
-        pbar.set_postfix({'Acc': new_val})
-        pbar.update(1)
 
     return idxs.reshape((1, -1)), marginals.reshape((1, -1))
 
@@ -162,8 +160,8 @@ def instantiate_tmab_logs(players, log_dir):
 
 
 # Experiment parameters
-SAVE_FREQ = 1
-TASK = 'cls'
+SAVE_FREQ = 100
+TASK = 'grasp'
 LAYER = 'features.0'
 METRIC = 'accuracy'
 TRUNCATION_ACC = 50.
@@ -175,7 +173,7 @@ MODEL_PATH = params.MODEL_WEIGHT_PATH
 PARALLEL_INSTANCE = sys.argv[2]
 
 ## CB directory
-run_name = '%s_%s' % (MODEL_NAME, LAYER)
+run_name = '%s_%s_%s' % (MODEL_NAME, LAYER, TASK)
 run_dir = os.path.join(DIR, run_name)
 log_dir = os.path.join(run_dir, '%s_%s.h5' % (run_name, PARALLEL_INSTANCE))
 
@@ -187,8 +185,9 @@ if run_name not in os.listdir(DIR):
 
 ## Load Model and get weights
 model = get_model(MODEL_PATH, DEVICE)
+print(model)
 weights, bias = get_weights(model, LAYER)
-# weights = weights[:-2]
+weights = weights#[:-2]
 ## Instantiate or load player list
 players = get_players(run_dir, weights)
 # Instantiate tmab logs

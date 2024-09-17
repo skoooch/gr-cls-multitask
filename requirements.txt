@@ -1,8 +1,5 @@
 numpy==1.24.4
 opencv_python==4.9.0.80
-Pillow==9.2.0
-Pillow==10.3.0
+Pillow
 Shapely==2.0.4
-torch==2.3.0
-torchvision==0.18.0
 tqdm==4.66.4
