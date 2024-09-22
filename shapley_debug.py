@@ -4,20 +4,18 @@ import sys
 
 import h5py
 import numpy as np
+from sympy import acot
 import torch
 import torch.nn as nn
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 from torchsummary import summary
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
+from data_processing.data_loader_v2 import DataLoader
 from training.single_task.evaluation import get_cls_acc, get_grasp_acc
 from utils.parameters import Params
 
 params = Params()
-
-def get_activation(name):
-    def hook(model, input, output):
-        activation[name] = output.detach()
-    return hook
 
 def remove_players(model: nn.Module, layer: str, removed_idx: list) -> nn.Module:
     """
@@ -44,7 +42,8 @@ def one_iteration(
     device='cuda',
     chosen_players=None,
     metric='accuracy', 
-    task='cls'):
+    task='cls',
+    activations=None):
     '''One iteration of Neuron-Shapley algoirhtm.'''
     if chosen_players is None:
         chosen_players = np.arange(len(c.keys()))
@@ -60,47 +59,30 @@ def one_iteration(
     truncation_counter = 0
     old_val = init_val
 
-    removing_players = []
+    shap_mask = torch.zeros((64))
     prev_set = False
     prev = None
     for idx in idxs:
-        print(idx)
-        for name, W in model.named_parameters():
-            if name == layer+'.weight' or name == layer+'.bias':           
-                # Calculate mean non-removed weight
-                if name == layer + '.weight':
-                    if prev_set: 
-                        print((prev-W.data).abs().sum().item())
-                        print(prev-W.data)
-                    prev_set = True
-                    prev = W.data.detach().clone()
-        if idx in chosen_players:
-            removing_players.append(players[c[idx]])
-            partial_model = remove_players(model, layer, removing_players) 
-            new_val = get_acc(partial_model, task=task, device=device)
-            print(new_val)
-            marginals[c[idx]] = old_val - new_val
-            old_val = new_val
-            if metric == 'accuracy' and new_val <= truncation:
-                truncation_counter += 1
-            else:
-                truncation_counter = 0
-            if truncation_counter > 5:
-                break
+        shap_mask[idx] = 1
+        # partial_model = remove_players(model, layer, removing_players) 
+        new_val = get_acc(model, task=task, device=device, shap_mask=shap_mask, activations=activations)
+        marginals[c[idx]] = old_val - new_val
+        old_val = new_val
+        if metric == 'accuracy' and new_val <= truncation:
+            truncation_counter += 1
         else:
-            removing_players.append(players[c[idx]])
-            partial_model = remove_players(model, layer, removing_players)      
-            new_val = get_acc(partial_model, task=task, device=device)
-            old_val = new_val
-
+            truncation_counter = 0
+        if truncation_counter > 5:
+            break
+    
     return idxs.reshape((1, -1)), marginals.reshape((1, -1))
 
 
-def get_acc(model, task='cls', device='cuda:0'):
+def get_acc(model, shap_mask=[], activations=None, task='cls', device='cuda:0'):
     if task == 'cls':
-        return get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=params.DATA_TRUNCATION, device=device)[0]
+        return get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=params.DATA_TRUNCATION, device=device, shap_mask=shap_mask, activations=activations)[0]
     elif task == 'grasp':
-        return get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=params.DATA_TRUNCATION, device=device)[0]
+        return get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=params.DATA_TRUNCATION, device=device, shap_mask=shap_mask, activations=activations)[0]
     else:
         raise ValueError('Invalid task!')
 
@@ -168,17 +150,31 @@ def instantiate_tmab_logs(players, log_dir):
 
     return mem_tmc, idxs_tmc
 
-def average_activations(model, layer, task):
-    model.rgb_features[1].register_forward_hook(get_activation(LAYER))
+def average_activations(model):
     activations = []
-    data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
+    data_loader = DataLoader(params.TRAIN_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
     labels = data_loader.get_cls_id()
     for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
         #NEED TO CHANGE BASED ON LAYER
-        activations[label.item()].append(model.rgb_features[0](img[:, :3, :, :]))
+        if(i%7 ==0 ):
+            rgb = img[:, :3, :, :]
+            d = torch.unsqueeze(img[:, 3, :, :], dim=1)
+            d = torch.cat((d, d, d), dim=1)
+
+            rgb = model.rgb_features(rgb)
+            d = model.d_features(d)
+            x = torch.cat((rgb, d), dim=1)
+            activations.append(model.features[0](x)[0].cpu().detach().numpy()[0])
+            # First layer
+            # activations.append(model.rgb_features[0](img[:, :3, :, :])[0].cpu().detach().numpy()[0])
+    np_activations_mean = np.zeros(activations[0].shape)
+    for activation in activations:
+        np_activations_mean += activation
+    act_tensor = torch.tensor(np_activations_mean / len(activations))
+    torch.save(act_tensor, os.path.join('shap/activations', 'features_0.pt'))
 # Experiment parameters
 SAVE_FREQ = 100
-TASK = 'cls'
+TASK = 'grasp'
 LAYER = 'rgb_features.0'
 METRIC = 'accuracy'
 TRUNCATION_ACC = 50.
@@ -203,9 +199,12 @@ if run_name not in os.listdir(DIR):
 
 ## Load Model and get weights
 model = get_model(MODEL_PATH, DEVICE)
-print(model)
 weights, bias = get_weights(model, LAYER)
 weights = weights#[:-2]
+
+#average_activations(model)
+activations = torch.load('shap/activations/rgb_features.pt').float().cuda()
+
 ## Instantiate or load player list
 players = get_players(run_dir, weights)
 # Instantiate tmab logs
@@ -225,8 +224,7 @@ while True:
         if len(chosen_players) == 1:
             break
     else:
-        chosen_players = None
-    print("here")        
+        chosen_players = None  
     idxs, vals =  one_iteration(
         copy.deepcopy(model),
         LAYER, 
@@ -236,7 +234,8 @@ while True:
         device=DEVICE,
         chosen_players=chosen_players,
         metric=METRIC,
-        task=TASK
+        task=TASK,
+        activations=activations
     )
 
     mem_tmc = np.concatenate([mem_tmc, vals])
