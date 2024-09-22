@@ -1,6 +1,7 @@
 *.pth
 !*final.pth
 !vis/shap/*
+!features/*
 *.obj
 *__pycache__/
 *.npy
