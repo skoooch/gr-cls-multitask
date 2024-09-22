@@ -7,7 +7,7 @@ from utils.parameters import Params
 
 # Experiment parameters
 TYPES = ['cls', 'grasp']
-LAYERS = ['rgb_features.0', 'features.0']
+LAYERS = ['rgb_features.0']
 
 R = 100.
 DELTA = 0.2
@@ -117,6 +117,7 @@ def plot_shapley_dist(players, results, model_type, layer):
         squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
         for result in results:
             mem_tmc = get_result(result)
+            print(mem_tmc)
             sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
             squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
             counts += np.sum(mem_tmc != -1, 0)
@@ -143,6 +144,7 @@ def plot_shapley_dist(players, results, model_type, layer):
     ax.set_ylabel('Shapley Scores')
     ax.xaxis.grid(False)
     ax.yaxis.grid(True)
+    fig.suptitle("Shapley Values for %s on %s" % (layer, model_type))
 
     plt.savefig('vis/shap/shapley_dist/shapley_dist_%s_%s.png' % (model_type, '_'.join(layer.split('.'))))
 
