@@ -129,24 +129,34 @@ class Multi_AlexnetMap_v3(nn.Module):
         rgb = x[:, :3, :, :]
         d = torch.unsqueeze(x[:, 3, :, :], dim=1)
         d = torch.cat((d, d, d), dim=1)
-        
-        if shap_mask != []:
+        # First Layer Shapley!!!!! -------------------------------------------------------
+        # if shap_mask != []:
             
-            rgb_conv_out = self.rgb_features[0](rgb)
+        #     rgb_conv_out = self.rgb_features[0](rgb)
+        #     shap_mask_idx = shap_mask.bool()  # Convert to a boolean mask for indexing
+        #     # Broadcast activations to match the shape of the output
+        #     broadcasted_activations = activations.unsqueeze(0)  # Add batch dimension
+        #     broadcasted_activations = broadcasted_activations.expand_as(rgb_conv_out)  # Expand to match rgb_conv_out's shape
+        #     # Set rgb_conv_out where shap_mask is True
+        #     rgb_conv_out[:, shap_mask_idx, :, :] = broadcasted_activations[:, shap_mask_idx, :, :]
+        #     rgb = self.rgb_features[1](rgb_conv_out)
+        #     rgb = self.rgb_features[2](rgb)
+        # else:
+        # ---------------------------------------------------------------------------------
+        rgb = self.rgb_features(rgb)
+        d = self.d_features(d)
+        x = torch.cat((rgb, d), dim=1)
+        if shap_mask != []:
+            features_conv_out = self.features[0:5](x)
             shap_mask_idx = shap_mask.bool()  # Convert to a boolean mask for indexing
             # Broadcast activations to match the shape of the output
             broadcasted_activations = activations.unsqueeze(0)  # Add batch dimension
-            broadcasted_activations = broadcasted_activations.expand_as(rgb_conv_out)  # Expand to match rgb_conv_out's shape
+            broadcasted_activations = broadcasted_activations.expand_as(features_conv_out)  # Expand to match rgb_conv_out's shape
             # Set rgb_conv_out where shap_mask is True
-            rgb_conv_out[:, shap_mask_idx, :, :] = broadcasted_activations[:, shap_mask_idx, :, :]
-            rgb = self.rgb_features[1](rgb_conv_out)
-            rgb = self.rgb_features[2](rgb)
+            features_conv_out[:, shap_mask_idx, :, :] = broadcasted_activations[:, shap_mask_idx, :, :]
+            x = self.features[5:](features_conv_out)
         else:
-            rgb = self.rgb_features(rgb)
-        d = self.d_features(d)
-        x = torch.cat((rgb, d), dim=1)
-
-        x = self.features(x)
+            x = self.features(x)
         if is_grasp:
             out = self.grasp(x)
             confidence = self.grasp_confidence(x)

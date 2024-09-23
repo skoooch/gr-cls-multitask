@@ -130,9 +130,9 @@ for unit_idx in range(64):
     img_tensor = torch.rand(1,3,277,277, requires_grad=True, device="cuda")
  #img_tensor = im_tensor.detach().clone().requires_grad_(True).to(device)
     act_wt = 0.5 # factor by which to weigh the activation relative to the regulizer terms
-    upscaling_steps = 20 # no. of times to upscale
+    upscaling_steps = 45 # no. of times to upscale
     upscaling_factor = 1.05
-    optim_steps = 3# no. of times to optimize an input image before upscaling
+    optim_steps = 20# no. of times to optimize an input image before upscaling
 
     model.eval()
     for mag_epoch in range(upscaling_steps+1):
@@ -172,7 +172,7 @@ for unit_idx in range(64):
         img = image_converter(img_tensor[0, :, :, :])    
         plt.imshow(img)
         plt.title('image at the end of mag_epoch: {}'.format(mag_epoch))
-        plt.savefig("features/%s.png" % unit_idx)
+        plt.savefig("features/rgb_features.0/45epoch/%s.png" % unit_idx)
         img = cv2.resize(img, dsize = (0,0), 
                         fx = upscaling_factor, fy = upscaling_factor).transpose(2,0,1) # scale up and move the batch axis to be the first
         img_tensor = normalize(torch.from_numpy(img))[None, :,:,:].to(device).requires_grad_(True)

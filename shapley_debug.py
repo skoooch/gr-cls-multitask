@@ -60,8 +60,6 @@ def one_iteration(
     old_val = init_val
 
     shap_mask = torch.zeros((64))
-    prev_set = False
-    prev = None
     for idx in idxs:
         shap_mask[idx] = 1
         # partial_model = remove_players(model, layer, removing_players) 
@@ -155,27 +153,27 @@ def average_activations(model):
     data_loader = DataLoader(params.TRAIN_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
     labels = data_loader.get_cls_id()
     for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
-        #NEED TO CHANGE BASED ON LAYER
         if(i%7 ==0 ):
             rgb = img[:, :3, :, :]
             d = torch.unsqueeze(img[:, 3, :, :], dim=1)
             d = torch.cat((d, d, d), dim=1)
-
+            #NEED TO CHANGE BASED ON LAYER
             rgb = model.rgb_features(rgb)
             d = model.d_features(d)
             x = torch.cat((rgb, d), dim=1)
-            activations.append(model.features[0](x)[0].cpu().detach().numpy()[0])
+            activations.append(model.features[0:5](x)[0].cpu().detach().numpy())
             # First layer
             # activations.append(model.rgb_features[0](img[:, :3, :, :])[0].cpu().detach().numpy()[0])
     np_activations_mean = np.zeros(activations[0].shape)
     for activation in activations:
         np_activations_mean += activation
     act_tensor = torch.tensor(np_activations_mean / len(activations))
-    torch.save(act_tensor, os.path.join('shap/activations', 'features_0.pt'))
+    print(act_tensor.shape)
+    torch.save(act_tensor, os.path.join('shap/activations', 'features_4.pt'))
 # Experiment parameters
 SAVE_FREQ = 100
 TASK = 'grasp'
-LAYER = 'rgb_features.0'
+LAYER = 'features.4'
 METRIC = 'accuracy'
 TRUNCATION_ACC = 50.
 DEVICE = sys.argv[1]
@@ -203,7 +201,7 @@ weights, bias = get_weights(model, LAYER)
 weights = weights#[:-2]
 
 #average_activations(model)
-activations = torch.load('shap/activations/rgb_features.pt').float().cuda()
+activations = torch.load('shap/activations/features_4.pt').float().cuda()
 
 ## Instantiate or load player list
 players = get_players(run_dir, weights)
