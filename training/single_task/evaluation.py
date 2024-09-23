@@ -46,8 +46,6 @@ def get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, 
             if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
                 break
             output = model(img, is_grasp=False)
-            print(output)
-            print(output)
             batch_correct, batch_total = get_correct_cls_preds_from_map(output, label)
             correct += batch_correct
             total += batch_total

@@ -2,12 +2,12 @@ import os
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
-
+from sklearn.metrics import r2_score
 from utils.parameters import Params
 
 # Experiment parameters
 TYPES = ['cls', 'grasp']
-LAYERS = ['rgb_features.0']
+LAYERS = ['rgb_features.0', 'features.0']
 
 R = 100.
 DELTA = 0.2
@@ -16,6 +16,49 @@ DIR = 'shap'
 
 params = Params()
 
+def plot_layer_by_task(players, results_dict, layer):
+    """
+    (Scatter plot)
+    (Data point = kernel w/ coordinate being (Shapley-value on cls, shapley-value on grasp))
+    Plot shapley value scatter plot and calculate correlation
+    """
+    vals = {}
+    for task in results_dict.keys():
+        squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
+        for result in results_dict[task]:
+            mem_tmc = get_result(result)
+            print(mem_tmc)
+            sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
+            squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
+            counts += np.sum(mem_tmc != -1, 0)
+        # No. of iterations for each neuron
+        counts = np.clip(counts, 1e-12, None)
+        print(counts)
+        print(sums)
+        # Expected shapley values of each neuron
+        vals[task] = sums / (counts + 1e-12)
+    # Assuming vals is already calculated for the two tasks:
+    task_1 = list(results_dict.keys())[0]  # Access the first task
+    task_2 = list(results_dict.keys())[1]  # Access the second task
+
+
+    # Extract the values for both tasks
+    vals_task_1 = vals[task_1]
+    vals_task_2 = vals[task_2]
+    vals_task_1 = np.array(vals_task_1)
+    vals_task_2 = np.array(vals_task_2)
+    r2 = r2_score(vals_task_1, vals_task_2)
+    # Create a scatter plot
+    plt.figure(figsize=(8, 6))
+    plt.scatter(vals_task_1, vals_task_2, color='b', alpha=0.7)
+    plt.title(f"Shapley Values of {task_1} vs {task_2} on {layer}")
+    plt.xlabel(f"Shapley Values for {task_1}")
+    plt.ylabel(f"Shapley Values for {task_2}")
+    plt.grid(True)
+    plt.text(0.05, 0.95, f"R² = {r2:.4f}", transform=plt.gca().transAxes, fontsize=12,
+         verticalalignment='top', bbox=dict(boxstyle="round,pad=0.3", edgecolor="black", facecolor="white"))
+
+    plt.savefig('vis/shap/layer_corr/layer_corr_%s.png' % layer)
 
 def get_players(directory):
     ## Load the list of all players (filters) else save
@@ -105,22 +148,13 @@ def plot_shapley_dist(players, results, model_type, layer):
     if 'shapley_dist' not in os.listdir('vis/shap'):
         os.mkdir(os.path.join('vis/shap', 'shapley_dist'))
 
-    if layer == "features.0":
-        squares, sums, counts = [np.zeros(30) for _ in range(3)]
-        for result in results:
-            mem_tmc = get_result(result)[:, :30]
-            
-            sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
-            squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
-            counts += np.sum(mem_tmc != -1, 0)
-    else:
-        squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
-        for result in results:
-            mem_tmc = get_result(result)
-            print(mem_tmc)
-            sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
-            squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
-            counts += np.sum(mem_tmc != -1, 0)
+    squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
+    for result in results:
+        mem_tmc = get_result(result)
+        print(mem_tmc)
+        sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
+        squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
+        counts += np.sum(mem_tmc != -1, 0)
     # No. of iterations for each neuron
     counts = np.clip(counts, 1e-12, None)
     print(counts)
@@ -205,19 +239,30 @@ def plot_shapley_conf_trend(players, results, model_type, layer):
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
-
-    for model_type in TYPES:
-        model_name = params.MODEL_NAME
-
-        for layer in LAYERS:
+    model_name = params.MODEL_NAME
+    
+    for layer in LAYERS:
+        results = {}
+        players = []
+        for model_type in TYPES:
             ## CB directory
             run_name = '%s_%s_%s' % (model_name, layer, model_type)
             run_dir = os.path.join(DIR, run_name)
 
             players = get_players(run_dir)
             instatiate_chosen_players(run_dir, players)    
-            results = get_results_list(run_dir)
+            results[model_type] = get_results_list(run_dir)
+        plot_layer_by_task(players, results, layer)
+    # for model_type in TYPES:
+    #     for layer in LAYERS:
+    #         ## CB directory
+    #         run_name = '%s_%s_%s' % (model_name, layer, model_type)
+    #         run_dir = os.path.join(DIR, run_name)
 
-            plot_shapley_dist(players, results, model_type, layer)
+    #         players = get_players(run_dir)
+    #         instatiate_chosen_players(run_dir, players)    
+    #         results = get_results_list(run_dir)
+           
+    #         plot_shapley_dist(players, results, model_type, layer)
 
-    #         plot_shapley_conf_trend(players, results, model_type, layer)
+    # #         plot_shapley_conf_trend(players, results, model_type, layer)
