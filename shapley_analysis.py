@@ -7,7 +7,7 @@ from utils.parameters import Params
 
 # Experiment parameters
 TYPES = ['cls', 'grasp']
-LAYERS = ['rgb_features.0', 'features.0']
+LAYERS = ['features.4']
 
 R = 100.
 DELTA = 0.2
@@ -241,28 +241,28 @@ if __name__ == '__main__':
         os.mkdir(os.path.join('vis', DIR))
     model_name = params.MODEL_NAME
     
-    for layer in LAYERS:
-        results = {}
-        players = []
-        for model_type in TYPES:
-            ## CB directory
-            run_name = '%s_%s_%s' % (model_name, layer, model_type)
-            run_dir = os.path.join(DIR, run_name)
-
-            players = get_players(run_dir)
-            instatiate_chosen_players(run_dir, players)    
-            results[model_type] = get_results_list(run_dir)
-        plot_layer_by_task(players, results, layer)
-    # for model_type in TYPES:
-    #     for layer in LAYERS:
+    # for layer in LAYERS:
+    #     results = {}
+    #     players = []
+    #     for model_type in TYPES:
     #         ## CB directory
     #         run_name = '%s_%s_%s' % (model_name, layer, model_type)
     #         run_dir = os.path.join(DIR, run_name)
 
     #         players = get_players(run_dir)
     #         instatiate_chosen_players(run_dir, players)    
-    #         results = get_results_list(run_dir)
-           
-    #         plot_shapley_dist(players, results, model_type, layer)
+    #         results[model_type] = get_results_list(run_dir)
+    #     plot_layer_by_task(players, results, layer)
+    for model_type in TYPES:
+        for layer in LAYERS:
+            ## CB directory
+            run_name = '%s_%s_%s' % (model_name, layer, model_type)
+            run_dir = os.path.join(DIR, run_name)
 
-    # #         plot_shapley_conf_trend(players, results, model_type, layer)
+            players = get_players(run_dir)
+            instatiate_chosen_players(run_dir, players)    
+            results = get_results_list(run_dir)
+           
+            plot_shapley_dist(players, results, model_type, layer)
+
+    #         plot_shapley_conf_trend(players, results, model_type, layer)
