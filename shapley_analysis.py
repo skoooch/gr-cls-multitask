@@ -4,10 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
 from utils.parameters import Params
-
+from scipy import stats
 # Experiment parameters
 TYPES = ['cls', 'grasp']
-LAYERS = ['features.4']
+LAYERS = ['features.7']
 
 R = 100.
 DELTA = 0.2
@@ -47,7 +47,7 @@ def plot_layer_by_task(players, results_dict, layer):
     vals_task_2 = vals[task_2]
     vals_task_1 = np.array(vals_task_1)
     vals_task_2 = np.array(vals_task_2)
-    r2 = r2_score(vals_task_1, vals_task_2)
+    r,_ = stats.pearsonr(vals_task_1, vals_task_2)
     # Create a scatter plot
     plt.figure(figsize=(8, 6))
     plt.scatter(vals_task_1, vals_task_2, color='b', alpha=0.7)
@@ -55,7 +55,7 @@ def plot_layer_by_task(players, results_dict, layer):
     plt.xlabel(f"Shapley Values for {task_1}")
     plt.ylabel(f"Shapley Values for {task_2}")
     plt.grid(True)
-    plt.text(0.05, 0.95, f"R² = {r2:.4f}", transform=plt.gca().transAxes, fontsize=12,
+    plt.text(0.05, 0.95, f"r = {r:.4f}", transform=plt.gca().transAxes, fontsize=12,
          verticalalignment='top', bbox=dict(boxstyle="round,pad=0.3", edgecolor="black", facecolor="white"))
 
     plt.savefig('vis/shap/layer_corr/layer_corr_%s.png' % layer)
@@ -241,18 +241,18 @@ if __name__ == '__main__':
         os.mkdir(os.path.join('vis', DIR))
     model_name = params.MODEL_NAME
     
-    # for layer in LAYERS:
-    #     results = {}
-    #     players = []
-    #     for model_type in TYPES:
-    #         ## CB directory
-    #         run_name = '%s_%s_%s' % (model_name, layer, model_type)
-    #         run_dir = os.path.join(DIR, run_name)
+    for layer in LAYERS:
+        results = {}
+        players = []
+        for model_type in TYPES:
+            ## CB directory
+            run_name = '%s_%s_%s' % (model_name, layer, model_type)
+            run_dir = os.path.join(DIR, run_name)
 
-    #         players = get_players(run_dir)
-    #         instatiate_chosen_players(run_dir, players)    
-    #         results[model_type] = get_results_list(run_dir)
-    #     plot_layer_by_task(players, results, layer)
+            players = get_players(run_dir)
+            instatiate_chosen_players(run_dir, players)    
+            results[model_type] = get_results_list(run_dir)
+        plot_layer_by_task(players, results, layer)
     for model_type in TYPES:
         for layer in LAYERS:
             ## CB directory
