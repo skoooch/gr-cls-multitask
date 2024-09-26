@@ -146,15 +146,17 @@ class Multi_AlexnetMap_v3(nn.Module):
         rgb = self.rgb_features(rgb)
         d = self.d_features(d)
         x = torch.cat((rgb, d), dim=1)
+        
         if shap_mask != []:
-            features_conv_out = self.features[0:5](x)
+            features_conv_out = self.features[0:11](x)
+            
             shap_mask_idx = shap_mask.bool()  # Convert to a boolean mask for indexing
             # Broadcast activations to match the shape of the output
             broadcasted_activations = activations.unsqueeze(0)  # Add batch dimension
             broadcasted_activations = broadcasted_activations.expand_as(features_conv_out)  # Expand to match rgb_conv_out's shape
             # Set rgb_conv_out where shap_mask is True
             features_conv_out[:, shap_mask_idx, :, :] = broadcasted_activations[:, shap_mask_idx, :, :]
-            x = self.features[5:](features_conv_out)
+            x = self.features[11:](features_conv_out)
         else:
             x = self.features(x)
         if is_grasp:
