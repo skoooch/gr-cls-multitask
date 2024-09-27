@@ -170,7 +170,7 @@ def average_activations(model):
     torch.save(act_tensor, os.path.join('shap/activations', 'features_10.pt'))
 # Experiment parameters
 SAVE_FREQ = 100
-TASK = 'cls'
+TASK = 'grasp'
 LAYER = 'features.10'
 METRIC = 'accuracy'
 TRUNCATION_ACC = 50.
@@ -198,7 +198,7 @@ model = get_model(MODEL_PATH, DEVICE)
 weights, bias = get_weights(model, LAYER)
 weights = weights#[:-2]
 
-average_activations(model)
+#average_activations(model)
 activations = torch.load('shap/activations/features_10.pt').float().cuda()
 ## Instantiate or load player list
 players = get_players(run_dir, weights)
