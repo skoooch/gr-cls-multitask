@@ -7,7 +7,7 @@ from utils.parameters import Params
 from scipy import stats
 # Experiment parameters
 TYPES = ['cls', 'grasp']
-LAYERS = ['features.7']
+LAYERS = ['features.7', 'features.10']
 
 R = 100.
 DELTA = 0.2
