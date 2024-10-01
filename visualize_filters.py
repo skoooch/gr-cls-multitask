@@ -1,7 +1,7 @@
 # normalize the input image to have appropriate mean and standard deviation as specified by pytorch
 import os 
 import cv2
-from torch import optim
+from torch import layer_norm, optim
 import sys
 import matplotlib.pyplot as plt
 from torchvision import transforms
@@ -125,27 +125,32 @@ gradLayer = RGBgradients(grad_filters)
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print('Calculations being executed on {}'.format(device))
 model.to(device)
-for unit_idx in range(64):
+model.eval()
+for unit_idx in range(32,64):
 
     img_tensor = torch.rand(1,3,277,277, requires_grad=True, device="cuda")
  #img_tensor = im_tensor.detach().clone().requires_grad_(True).to(device)
     act_wt = 0.5 # factor by which to weigh the activation relative to the regulizer terms
-    upscaling_steps = 45 # no. of times to upscale
+    upscaling_steps = 20 # no. of times to upscale
     upscaling_factor = 1.05
-    optim_steps = 20# no. of times to optimize an input image before upscaling
-
-    model.eval()
+    optim_steps = 60# no. of times to optimize an input image before upscalin
+        
     for mag_epoch in range(upscaling_steps+1):
         optimizer = optim.Adam([img_tensor], lr = 0.4)
         
         for opt_epoch in range(optim_steps):
             optimizer.zero_grad()
-            layer_out = model.rgb_features[0](img_tensor[:, :3, :, :])
+            d = torch.unsqueeze(img_tensor[:, 2, :, :], dim=1)
+            d = torch.cat((d, d, d), dim=1)
+            rgb = model.rgb_features(img_tensor[:, :3, :, :])
+            d = model.d_features(d)
+            x = torch.cat((rgb, d), dim=1)
+            layer_out = model.features[:5](x)
             rms = torch.pow((layer_out[0, unit_idx]**2).mean(), 0.5)
             # terminate if rms is nan
-            if torch.isnan(rms):
-                print('Error: rms was Nan; Terminating ...')
-                sys.exit()
+            # if torch.isnan(rms):
+            #     print('Error: rms was Nan; Terminating ...')
+            #     sys.exit()
             
             # pixel intensity
             pxl_inty = torch.pow((img_tensor**2).mean(), 0.5)
@@ -153,7 +158,7 @@ for unit_idx in range(64):
             if torch.isnan(pxl_inty):
                 print('Error: Pixel Intensity was Nan; Terminating ...')
                 sys.exit()
-                
+            
             # image gradients
             im_grd = grad_loss(img_tensor[0, :, :, :], beta = 1, device = device)
             # terminate is im_grd is nan
@@ -172,7 +177,7 @@ for unit_idx in range(64):
         img = image_converter(img_tensor[0, :, :, :])    
         plt.imshow(img)
         plt.title('image at the end of mag_epoch: {}'.format(mag_epoch))
-        plt.savefig("features/rgb_features.0/45epoch/%s.png" % unit_idx)
+        plt.savefig("features/features.4/%s.png" % unit_idx)
         img = cv2.resize(img, dsize = (0,0), 
                         fx = upscaling_factor, fy = upscaling_factor).transpose(2,0,1) # scale up and move the batch axis to be the first
         img_tensor = normalize(torch.from_numpy(img))[None, :,:,:].to(device).requires_grad_(True)

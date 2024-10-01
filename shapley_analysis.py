@@ -5,17 +5,81 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
 from utils.parameters import Params
 from scipy import stats
+import shutil
 # Experiment parameters
 TYPES = ['cls', 'grasp']
-LAYERS = ['features.7', 'features.10']
+LAYERS = ['rgb_features.0','features.0','features.4', 'features.7', 'features.10']
 
 R = 100.
 DELTA = 0.2
 
 DIR = 'shap'
+from scipy.stats import norm
+
+def fisher_z_transform(r):
+    """Perform Fisher's Z-transformation."""
+    return np.arctanh(r)
+
+def inverse_fisher_z_transform(z):
+    """Convert back from Fisher's Z-transformation to correlation."""
+    return np.tanh(z)
+
+def confidence_interval(r, n, alpha=0.05):
+    """Compute the confidence interval for a correlation coefficient."""
+    # Fisher Z transformation of r
+    z = fisher_z_transform(r)
+    
+    # Standard error of Z
+    se = 1 / np.sqrt(n - 3)
+    
+    # Z critical value for the desired confidence level
+    z_critical = norm.ppf(1 - alpha / 2)
+    
+    # Confidence interval in Z scale
+    z_conf_interval = z_critical * se
+    z_lower = z - z_conf_interval
+    z_upper = z + z_conf_interval
+    
+    # Convert back to r scale
+    r_lower = inverse_fisher_z_transform(z_lower)
+    r_upper = inverse_fisher_z_transform(z_upper)
+    
+    return r_lower, r_upper
 
 params = Params()
+def get_r(players, results_dict, layer):
+    """
+    (Scatter plot)
+    (Data point = kernel w/ coordinate being (Shapley-value on cls, shapley-value on grasp))
+    Plot shapley value scatter plot and calculate correlation
+    """
+    vals = {}
+    for task in results_dict.keys():
+        squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
+        for result in results_dict[task]:
+            mem_tmc = get_result(result)
+            print(mem_tmc)
+            sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
+            squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
+            counts += np.sum(mem_tmc != -1, 0)
+        # No. of iterations for each neuron
+        counts = np.clip(counts, 1e-12, None)
+        print(counts)
+        print(sums)
+        # Expected shapley values of each neuron
+        vals[task] = sums / (counts + 1e-12)
+    # Assuming vals is already calculated for the two tasks:
+    task_1 = list(results_dict.keys())[0]  # Access the first task
+    task_2 = list(results_dict.keys())[1]  # Access the second task
 
+
+    # Extract the values for both tasks
+    vals_task_1 = vals[task_1]
+    vals_task_2 = vals[task_2]
+    vals_task_1 = np.array(vals_task_1)
+    vals_task_2 = np.array(vals_task_2)
+    return stats.pearsonr(vals_task_1, vals_task_2)
+    
 def plot_layer_by_task(players, results_dict, layer):
     """
     (Scatter plot)
@@ -114,7 +178,6 @@ def get_shapley_top_k(model_name, layer, k):
     vals = sums / (counts + 1e-12)
 
     sorted_vals_idx = np.argsort(vals)[-k:]
-
     return sorted_vals_idx
 
 
@@ -170,8 +233,11 @@ def plot_shapley_dist(players, results, model_type, layer):
     sorted_vals_idx = np.argsort(vals)[-params.TOP_K:]
     top_k_vals = np.zeros((len(vals)))
     top_k_vals[sorted_vals_idx] = 1
-    colors = np.where(top_k_vals == 1, 'coral', 'turquoise')
 
+    colors = np.where(top_k_vals == 1, 'coral', 'turquoise')
+    for i in range(len(players)):
+        if top_k_vals[i] == 1:
+            shutil.copy('features/%s/%s.png' % (layer, i), 'features/%s_%s_%s.png' % (layer, model_type, i))
     fig, ax = plt.subplots()
     ax.bar(np.arange(len(vals)), vals, yerr=cbs, align='center', ecolor='lightgrey', color=colors)
     ax.set_xlabel('Kernel Index')
@@ -266,3 +332,44 @@ if __name__ == '__main__':
             plot_shapley_dist(players, results, model_type, layer)
 
     #         plot_shapley_conf_trend(players, results, model_type, layer)
+    r_value = []
+    for layer in LAYERS:
+        results = {}
+        players = []
+        for model_type in TYPES:
+            ## CB directory
+            run_name = '%s_%s_%s' % (model_name, layer, model_type)
+            run_dir = os.path.join(DIR, run_name)
+
+            players = get_players(run_dir)
+            instatiate_chosen_players(run_dir, players)    
+            results[model_type] = get_results_list(run_dir)
+        r,p = get_r(players, results, layer)
+        r_value.append(r)
+    n = 64  # Assuming sample size of 30
+
+    # Calculate confidence intervals for each r-value
+    confidence_intervals = [confidence_interval(r, n) for r in r_value]
+
+    # Extract lower and upper bounds
+    lower_bounds = [ci[0] for ci in confidence_intervals]
+    upper_bounds = [ci[1] for ci in confidence_intervals]
+
+    # Plotting
+    fig, ax = plt.subplots()
+    x_values = np.arange(1, len(r_value) + 1)
+
+    # Plot the r values with confidence intervals
+    ax.errorbar(x_values, r_value, 
+                yerr=[np.abs(np.array(r_value) - np.array(lower_bounds)), 
+                    np.abs(np.array(upper_bounds) - np.array(r_value))],
+                fmt='o', capsize=5, linestyle='--')
+
+    # Customize the plot
+    ax.set_xticks(x_values)
+    ax.set_xticklabels([f'{i}' for i in range(1, len(r_value) + 1)])
+    ax.set_ylabel('Correlation (r-value)')
+    ax.set_xlabel('Convolutional layer')
+    ax.set_title('Correlation in Neuron Shapley Values Between Tasks Across Layers')
+    ax.legend()
+    plt.savefig('vis/shap/layer_corr/all_layers.png')
