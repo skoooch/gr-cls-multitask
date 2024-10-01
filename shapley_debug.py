@@ -170,7 +170,7 @@ def average_activations(model):
     torch.save(act_tensor, os.path.join('shap/activations', 'features_10.pt'))
 # Experiment parameters
 SAVE_FREQ = 100
-TASK = 'grasp'
+TASK = 'cls'
 LAYER = 'features.10'
 METRIC = 'accuracy'
 TRUNCATION_ACC = 50.
