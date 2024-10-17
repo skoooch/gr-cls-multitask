@@ -38,6 +38,16 @@ def crop_center(image_array, target_size=(227, 227)):
     
     return cropped_array
 
+def get_feature_activations(model, images, i=0):
+    pass
+
+def get_rgb_activations(model, images, labels, depth=False):
+    activations = {}
+    for i, (img, label) in enumerate(zip(images, labels)):
+        if label not in activations.keys(): activations[label] = []
+        activations[label].append(model.rgb_features[0](img[:, :3, :, :]))
+    return activations
+
 def rgb_to_depth(rgb_image):
     """
     Convert a 3-channel RGB image where depth is encoded as:
@@ -157,19 +167,18 @@ MODEL_PATH = params.MODEL_WEIGHT_PATH
 model = get_model(MODEL_PATH, DEVICE)
 
 model.rgb_features[1].register_forward_hook(get_activation(LAYER))
-activations = {}
+
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
 labels = ['A', 'B', 'C', 'D', 'E']
 labels_repeated = np.repeat(labels, 5)
-for i, (img, label) in enumerate(zip(images, labels_repeated)):
-    if label not in activations.keys(): activations[label] = []
-    activations[label].append(model.rgb_features[0](img[:, :3, :, :]))
+activations = get_rgb_activations(model, images, labels_repeated)
+
 activations_flat = []
 for label in labels:
     for act in activations[label]:
         activations_flat.append(np.asarray(torch.flatten(act).cpu()))
 act_array = np.asarray(activations_flat)
-result = squareform(pdist(act_array, metric='correlation'))
+result = squareform(pdist(act_array, metric="correlation"))
 
 num_images_per_label = len(activations['A'])
 # embedding = MDS.cmdscale(result, 2)[0]
@@ -195,18 +204,18 @@ num_images_per_label = len(activations['A'])
 #                 avr_y,
 #                 label = cat)
 # ax.legend()
-# plt.savefig('vis/rsm/rgb_1_avr.png')    
+# plt.savefig('vis/rsm/rgb_1_avr.png')  
+mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}  
 embedding = MDS.two_mds(result)
 embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories
             for i, cat in enumerate(labels)}   
-
 
 fig = plt.figure()
 ax = fig.add_subplot()
 for cat in labels:
     ax.scatter(embedding[cat][:, 0],
                 embedding[cat][:, 1],
-                label=cat)
+                label=mapping[cat])
     
 # for cat in labels:
 #     for i in range(len(embedding[cat][:, 0])):
@@ -214,9 +223,10 @@ for cat in labels:
 #                     embedding[cat][i, 1],
 #                     i)
 ax.legend()
-plt.title("Layer 1 of RGB_Features (euclidean)")
-plt.savefig('vis/rsm/rgb_2d_0_euclid_labeled.png')   
-# plt.clf()
+plt.title("Layer 1 of RGB_Features (correlation)")
+plt.savefig('vis/rsm/rgb_2d_0_correlation_labeled.png')   
+plt.clf()
+
 fig = plt.figure()
 ax = fig.add_subplot()
 for cat in labels:
@@ -224,7 +234,42 @@ for cat in labels:
     avr_y = np.mean(embedding[cat][:, 1])
     ax.scatter(avr_x,
                 avr_y,
-                label=cat)
+                label=mapping[cat])
 ax.legend()
-plt.title("Layer 1 of RGB_Features (AVR) (euclidean)")
-plt.savefig('vis/rsm/rgb_3d_0_avr_euclid.png')
+plt.title("Layer 1 of RGB_Features (AVR) (correlation)")
+plt.savefig('vis/rsm/rgb_2d_0_avr_correlation.png')
+plt.clf()
+embedding = MDS.three_mds(result)
+embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories
+            for i, cat in enumerate(labels)}  
+
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
+for cat in labels:
+    ax.scatter(embedding[cat][:, 0],
+                embedding[cat][:, 1],
+                embedding[cat][:, 2],
+                label=mapping[cat])   
+# for cat in labels:
+#     for i in range(len(embedding[cat][:, 0])):
+#         ax.text(embedding[cat][i, 0],
+#                     embedding[cat][i, 1],
+#                     i)
+ax.legend()
+plt.title("Layer 1 of RGB_Features (correlation)")
+plt.savefig('vis/rsm/rgb_3d_0_correlation_labeled.png')   
+plt.clf()
+mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
+for cat in labels:
+    avr_x = np.mean(embedding[cat][:, 0])
+    avr_y = np.mean(embedding[cat][:, 1])
+    avr_z = np.mean(embedding[cat][:, 2])
+    ax.scatter(avr_x,
+                avr_y,
+                avr_z,
+                label=mapping[cat])
+ax.legend()
+plt.title("Layer 1 of RGB_Features (AVR) (correlation)")
+plt.savefig('vis/rsm/rgb_3d_0_avr_correlation.png')
