@@ -13,7 +13,6 @@ params = Params()
 def MapLoss(output, map):
     output = torch.moveaxis(output, 1, -1)
     map = torch.moveaxis(map, 1, -1)
-
     confidence_loss = nll_loss(output[:, :, :, 5], map[:, :, :, 5])
     confidence_loss = torch.mean(confidence_loss)
 
