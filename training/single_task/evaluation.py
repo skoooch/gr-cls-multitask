@@ -10,7 +10,7 @@ on the DataLoader lines.
 import torch
 import cv2
 import random
-
+import matplotlib.pylab as plt
 import numpy as np
 from PIL import Image, ImageDraw
 

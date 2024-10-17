@@ -1,3 +1,4 @@
+from multiprocessing import active_children
 import numpy as np
 import torch
 import torch.nn as nn
@@ -13,93 +14,47 @@ from data_processing.data_loader_v2 import DataLoader
 from utils.parameters import Params
 import numpy as np
 from scipy.cluster.hierarchy import dendrogram, linkage, cophenet
-def crop_center(image_array, target_size=(227, 227)):
-    """
-    Crop the image from the center to the specified target size.
-    
-    Args:
-        image_array: 3D NumPy array representing the image (height, width, channels).
-        target_size: Tuple representing the desired size (height, width).
-    
-    Returns:
-        cropped_array: Cropped NumPy array of size (target_height, target_width, channels).
-    """
-    current_height, current_width = image_array.shape[:2]
-    target_height, target_width = target_size
-    
-    # Calculate the coordinates for the center crop
-    start_x = (current_width - target_width) // 2
-    start_y = (current_height - target_height) // 2
-    end_x = start_x + target_width
-    end_y = start_y + target_height
-    
-    # Crop the image
-    cropped_array = image_array[start_y:end_y, start_x:end_x]
-    
-    return cropped_array
+from own_images import load_images_to_arrays
 
-def get_feature_activations(model, images, i=0):
-    pass
+def get_feature_activations(model, images, labels, layer_i=0):
+    activations = {}
+    labels_repeated = np.repeat(labels, 5)
+    for i, (img, label) in enumerate(zip(images, labels_repeated)):
+        if label not in activations.keys(): activations[label] = []
+        rgb = img[:, :3, :, :]
+        d = torch.unsqueeze(img[:, 3, :, :], dim=1)
+        d = torch.cat((d, d, d), dim=1)
+        rgb = model.rgb_features(rgb)
+        d = model.d_features(d)
+        x = torch.cat((rgb, d), dim=1)
+        next = model.features[:layer_i](x)
+        activations[label].append(next)
+    activations_flat = []
+    for label in labels:
+        for act in activations[label]:
+            activations_flat.append(torch.flatten(act).cpu().detach().numpy())
+        print(activations_flat[-1].shape)
+    act_array = np.asarray(activations_flat)
+    return act_array
 
 def get_rgb_activations(model, images, labels, depth=False):
     activations = {}
-    for i, (img, label) in enumerate(zip(images, labels)):
+    labels_repeated = np.repeat(labels, 5)
+    for i, (img, label) in enumerate(zip(images, labels_repeated)):
         if label not in activations.keys(): activations[label] = []
-        activations[label].append(model.rgb_features[0](img[:, :3, :, :]))
-    return activations
-
-def rgb_to_depth(rgb_image):
-    """
-    Convert a 3-channel RGB image where depth is encoded as:
-    - Red = Far (higher values mean farther)
-    - Blue = Close (higher values mean closer)
-    to a single-channel depth map.
-    
-    Args:
-        rgb_image: 3D NumPy array of shape (height, width, 3)
-    
-    Returns:
-        depth_map: 2D NumPy array of shape (height, width), representing depth.
-    """
-    # Extract the red and blue channels
-    red_channel = rgb_image[:, :, 0]
-    blue_channel = rgb_image[:, :, 2]
-    
-    # Normalize both channels to the range [0, 1]
-    red_norm = red_channel / 255.0
-    blue_norm = blue_channel / 255.0
-    
-    # Calculate the depth map. Since red = far and blue = close,
-    # we might assume that the depth can be represented as red - blue.
-    # A higher value in red would mean farther, while a higher value in blue would mean closer.
-    depth_map = red_norm - blue_norm
-    
-    # Normalize the result back to the range [0, 255] for visualization purposes, if needed
-    depth_map_normalized = ((depth_map - depth_map.min()) / (depth_map.max() - depth_map.min())) * 255
-    
-    return depth_map_normalized.astype(np.uint8)
-
-def load_images_to_arrays():
-    image_arrays= []
-    depth_path = 'new_data/cleaned'
-    rgb_path = 'new_data/RGB'
-    # Get a list of all PNG files in the folder
-    image_files = sorted([f for f in os.listdir(depth_path) if f.endswith('.png')])
-    for image_file in image_files:
-        # Construct the full file path
-        depth_file = os.path.join(depth_path, image_file)
-        rgb_file = os.path.join(rgb_path, image_file.replace("Depth", "Color"))
-        # Open the image using Pillow
-        depth_array = None
-        with Image.open(depth_file) as img:
-            # Convert the image to a NumPy array and append to the list
-            depth_array = crop_center(np.array(img))
-            depth_array = torch.from_numpy(rgb_to_depth(depth_array))[None, None, ...]
-        with Image.open(rgb_file) as img:
-            # Convert the image to a NumPy array and append to the list
-            rgb_array = torch.from_numpy(np.transpose(crop_center(np.array(img))))[None, ...]
-            image_arrays.append((torch.cat((rgb_array, depth_array), dim=1)).to(torch.float).to("cuda"))
-    return image_arrays
+        if depth:
+            d = torch.unsqueeze(img[:, 3, :, :], dim=1)
+            d = torch.cat((d, d, d), dim=1)
+            activation = torch.concat((model.rgb_features[0](img[:, :3, :, :]), model.d_features(d)), dim=1)
+            activations[label].append(activation)
+        else:
+            activations[label].append(model.rgb_features[0](img[:, :3, :, :]))
+    activations_flat = []
+    for label in labels:
+        for act in activations[label]:
+            activations_flat.append(np.asarray(torch.flatten(act).cpu()))
+    act_array = np.asarray(activations_flat)
+    return act_array
     
 class MDS:
     """ Classical multidimensional scaling (MDS)
@@ -160,27 +115,21 @@ def get_activation(name):
     return hook
 
 images = load_images_to_arrays()
-LAYER = 'rgb_features.0'
 DEVICE = sys.argv[1]
 MODEL_NAME = params.MODEL_NAME
 MODEL_PATH = params.MODEL_WEIGHT_PATH
 model = get_model(MODEL_PATH, DEVICE)
 
-model.rgb_features[1].register_forward_hook(get_activation(LAYER))
-
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
 labels = ['A', 'B', 'C', 'D', 'E']
 labels_repeated = np.repeat(labels, 5)
-activations = get_rgb_activations(model, images, labels_repeated)
-
-activations_flat = []
-for label in labels:
-    for act in activations[label]:
-        activations_flat.append(np.asarray(torch.flatten(act).cpu()))
-act_array = np.asarray(activations_flat)
-result = squareform(pdist(act_array, metric="correlation"))
-
-num_images_per_label = len(activations['A'])
+act_array = get_feature_activations(model, images, labels, layer_i=1)
+for i in [1, 5, 8, 11]:
+    act_array = get_feature_activations(model, images, labels, layer_i=i)
+    result = squareform(pdist(act_array, metric="correlation"))
+    np.save("saved_model_rsms/features_%s.npy" % (i-1), result)
+exit()
+num_images_per_label = 5
 # embedding = MDS.cmdscale(result, 2)[0]
 # embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories
 #             for i, cat in enumerate(labels)}   
