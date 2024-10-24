@@ -25,6 +25,13 @@ To reattach, simply type `tmux attach`.
  
 
 ## multiAlexMap_top5_v1.5
+Task| Recogniton | Grasping
+--- | --- | --- 
+Train Accuracy (%) | 99.02 | 83.65 
+Test Accuracy (%) | 85.0| 81.5 
+Learning Rate | 301 | 283 
+Epoch | 150 | 150 
+
 Size of divergent heads: 4 layers
 
 Weighted Loss Ratio (Grasp : Classification): 1.5 : 0.5 
