@@ -10,7 +10,7 @@ import numpy as np
 from utils.parameters import Params
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from training.single_task.evaluation import get_cls_acc, get_grasp_acc, visualize_grasp, visualize_cls
-
+from torchvision.utils import make_grid
 params = Params()
 
 model_name = params.MODEL_NAME
@@ -105,79 +105,88 @@ def grad_loss(img, beta = 1, device = 'cpu'):
     
     return grad_loss
 
+def AM():
+    normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                                    std=[0.229, 0.224, 0.225])
+    # undo the above normalization if and when the need arises 
+    denormalize = transforms.Normalize(mean = [-0.485/0.229, -0.456/0.224, -0.406/0.225], std = [1/0.229, 1/0.224, 1/0.225] )
 
-normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225])
-# undo the above normalization if and when the need arises 
-denormalize = transforms.Normalize(mean = [-0.485/0.229, -0.456/0.224, -0.406/0.225], std = [1/0.229, 1/0.224, 1/0.225] )
+    Height = 277
+    Width = 277
+    # generate a numpy array with random values
 
-Height = 277
-Width = 277
-# generate a numpy array with random values
+                # Scharr Filters
+    filter_x = np.array([[-3, 0, 3], 
+                        [-10, 0, 10],
+                        [-3, 0, 3]])
+    filter_y = filter_x.T
+    grad_filters = np.array([filter_x, filter_y])
+    gradLayer = RGBgradients(grad_filters)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print('Calculations being executed on {}'.format(device))
+    model.to(device)
+    model.eval()
+    for unit_idx in range(32,64):
 
-            # Scharr Filters
-filter_x = np.array([[-3, 0, 3], 
-                    [-10, 0, 10],
-                    [-3, 0, 3]])
-filter_y = filter_x.T
-grad_filters = np.array([filter_x, filter_y])
-gradLayer = RGBgradients(grad_filters)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print('Calculations being executed on {}'.format(device))
-model.to(device)
-model.eval()
-for unit_idx in range(32,64):
-
-    img_tensor = torch.rand(1,3,277,277, requires_grad=True, device="cuda")
- #img_tensor = im_tensor.detach().clone().requires_grad_(True).to(device)
-    act_wt = 0.5 # factor by which to weigh the activation relative to the regulizer terms
-    upscaling_steps = 20 # no. of times to upscale
-    upscaling_factor = 1.05
-    optim_steps = 60# no. of times to optimize an input image before upscalin
-        
-    for mag_epoch in range(upscaling_steps+1):
-        optimizer = optim.Adam([img_tensor], lr = 0.4)
-        
-        for opt_epoch in range(optim_steps):
-            optimizer.zero_grad()
-            d = torch.unsqueeze(img_tensor[:, 2, :, :], dim=1)
-            d = torch.cat((d, d, d), dim=1)
-            rgb = model.rgb_features(img_tensor[:, :3, :, :])
-            d = model.d_features(d)
-            x = torch.cat((rgb, d), dim=1)
-            layer_out = model.features[:5](x)
-            rms = torch.pow((layer_out[0, unit_idx]**2).mean(), 0.5)
-            # terminate if rms is nan
-            # if torch.isnan(rms):
-            #     print('Error: rms was Nan; Terminating ...')
-            #     sys.exit()
+        img_tensor = torch.rand(1,3,277,277, requires_grad=True, device="cuda")
+    #img_tensor = im_tensor.detach().clone().requires_grad_(True).to(device)
+        act_wt = 0.5 # factor by which to weigh the activation relative to the regulizer terms
+        upscaling_steps = 20 # no. of times to upscale
+        upscaling_factor = 1.05
+        optim_steps = 60# no. of times to optimize an input image before upscalin
             
-            # pixel intensity
-            pxl_inty = torch.pow((img_tensor**2).mean(), 0.5)
-            # terminate if pxl_inty is nan
-            if torch.isnan(pxl_inty):
-                print('Error: Pixel Intensity was Nan; Terminating ...')
-                sys.exit()
+        for mag_epoch in range(upscaling_steps+1):
+            optimizer = optim.Adam([img_tensor], lr = 0.4)
             
-            # image gradients
-            im_grd = grad_loss(img_tensor[0, :, :, :], beta = 1, device = device)
-            # terminate is im_grd is nan
-            if torch.isnan(im_grd):
-                print('Error: image gradients were Nan; Terminating ...')
-                sys.exit()
+            for opt_epoch in range(optim_steps):
+                optimizer.zero_grad()
+                d = torch.unsqueeze(img_tensor[:, 2, :, :], dim=1)
+                d = torch.cat((d, d, d), dim=1)
+                rgb = model.rgb_features(img_tensor[:, :3, :, :])
+                d = model.d_features(d)
+                x = torch.cat((rgb, d), dim=1)
+                layer_out = model.features[:5](x)
+                rms = torch.pow((layer_out[0, unit_idx]**2).mean(), 0.5)
+                # terminate if rms is nan
+                # if torch.isnan(rms):
+                #     print('Error: rms was Nan; Terminating ...')
+                #     sys.exit()
+                
+                # pixel intensity
+                pxl_inty = torch.pow((img_tensor**2).mean(), 0.5)
+                # terminate if pxl_inty is nan
+                if torch.isnan(pxl_inty):
+                    print('Error: Pixel Intensity was Nan; Terminating ...')
+                    sys.exit()
+                
+                # image gradients
+                im_grd = grad_loss(img_tensor[0, :, :, :], beta = 1, device = device)
+                # terminate is im_grd is nan
+                if torch.isnan(im_grd):
+                    print('Error: image gradients were Nan; Terminating ...')
+                    sys.exit()
+                
+                loss = -act_wt*rms + pxl_inty + im_grd        
+                # print activation at the beginning of each mag_epoch
+                if opt_epoch == 0:
+                    print('begin mag_epoch {}, activation: {}'.format(mag_epoch, rms))
+                loss.backward()
+                optimizer.step()
+            # view the result of optimising the image
+            print('end mag_epoch: {}, activation: {}'.format(mag_epoch, rms))
+            img = image_converter(img_tensor[0, :, :, :])    
+            plt.imshow(img)
+            plt.title('image at the end of mag_epoch: {}'.format(mag_epoch))
+            plt.savefig("features/features.4/%s.png" % unit_idx)
+            img = cv2.resize(img, dsize = (0,0), 
+                            fx = upscaling_factor, fy = upscaling_factor).transpose(2,0,1) # scale up and move the batch axis to be the first
+            img_tensor = normalize(torch.from_numpy(img))[None, :,:,:].to(device).requires_grad_(True)
             
-            loss = -act_wt*rms + pxl_inty + im_grd        
-            # print activation at the beginning of each mag_epoch
-            if opt_epoch == 0:
-                print('begin mag_epoch {}, activation: {}'.format(mag_epoch, rms))
-            loss.backward()
-            optimizer.step()
-        # view the result of optimising the image
-        print('end mag_epoch: {}, activation: {}'.format(mag_epoch, rms))
-        img = image_converter(img_tensor[0, :, :, :])    
-        plt.imshow(img)
-        plt.title('image at the end of mag_epoch: {}'.format(mag_epoch))
-        plt.savefig("features/features.4/%s.png" % unit_idx)
-        img = cv2.resize(img, dsize = (0,0), 
-                        fx = upscaling_factor, fy = upscaling_factor).transpose(2,0,1) # scale up and move the batch axis to be the first
-        img_tensor = normalize(torch.from_numpy(img))[None, :,:,:].to(device).requires_grad_(True)
+def vis_kernels():
+    kernels = model.rgb_features[0].weight.detach().clone()
+    kernels = kernels - kernels.min()
+    kernels = kernels / kernels.max()
+    img = make_grid(kernels)
+    plt.imsave("test.png",img.permute(1, 2, 0).cpu().numpy().astype(np.float32))
+    
+vis_kernels()
