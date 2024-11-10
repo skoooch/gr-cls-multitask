@@ -114,7 +114,7 @@ def get_activation(name):
         activation[name] = output.detach()
     return hook
 
-images = load_images_to_arrays()
+images = load_images_to_arrays(depth=False)
 DEVICE = sys.argv[1]
 MODEL_NAME = params.MODEL_NAME
 MODEL_PATH = params.MODEL_WEIGHT_PATH
@@ -166,11 +166,6 @@ for cat in labels:
                 embedding[cat][:, 1],
                 label=mapping[cat])
     
-# for cat in labels:
-#     for i in range(len(embedding[cat][:, 0])):
-#         ax.text(embedding[cat][i, 0],
-#                     embedding[cat][i, 1],
-#                     i)
 ax.legend()
 plt.title("Layer 1 of RGB_Features (correlation)")
 plt.savefig('vis/rsm/rgb_2d_0_correlation_labeled.png')   
