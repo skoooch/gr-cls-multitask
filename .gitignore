@@ -9,6 +9,7 @@
 *_grasps.txt
 *.tiff
 *_RGB.png
+*.png
 *.zip
 dump
 .env/
