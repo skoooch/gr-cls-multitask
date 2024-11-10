@@ -77,7 +77,7 @@ def rgb_to_depth(rgb_image):
     
     return depth_map_normalized.astype(np.uint8)
 
-def load_images_to_arrays():
+def load_images_to_arrays(depth=True):
     image_arrays= []
     depth_path = 'new_data/cleaned'
     rgb_path = 'new_data/RGB'
@@ -92,6 +92,8 @@ def load_images_to_arrays():
         with Image.open(depth_file) as img:
             # Convert the image to a NumPy array and append to the list
             depth_array = crop_center(np.array(img))
+            if not depth:
+                depth_array = np.zeros(depth_array.shape)
             depth_array = torch.from_numpy(rgb_to_depth(depth_array))[None, None, ...]
         with Image.open(rgb_file) as img:
             # Convert the image to a NumPy array and append to the list
