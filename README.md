@@ -2,27 +2,19 @@
 Multi-tasking model for grasping and classification (in progress)
 
 you can see the model architecture in [multi_task_models/grcn_multi_alex.py](multi_task_models/grcn_multi_alex.py) 
-# shapley instructions
-Log into psych cluster 
+# RSA instructions
+## First step is to download the matlab data!
 
-navigate to `Desktop/ewan/gr-cls-multitask/`
+Run this from inside the `matlab_files` directory 
 
-Activate venv with `source foo/bin/activate`
+```
+gdown --folder https://drive.google.com/drive/folders/1FBsL4MVpCpqCuobVhH1_23RLRHDfx0Y7?ths=true
+```
+## Running the RSA
 
-Edit the glabal values `LAYER` and `TASK` based on what you want to run shapley on. Currently these values are set to `features.0` and `cls`.
- 
-run `tmux` to start a tmux session (it will let you close the window and keep the program running \[does the same thing as `screen`\])
-
-run the command `srun -p gpu --gpus=1 --mem=[X] python3 shapley_cb_run.py cuda [Y]`
-
-X = amount of memory you want to allocate. As of right now, the cluster's gpu partition is fully in use, but you can decide this number based on how much ram is available
-
-Y = name of the parallel instance for this layer/task combo. **Important**: this value **must be unique**. If there already exists an h5py file with the same instance name (this can be checked by looking value after the last underscore on the h5py files in a give layer/task's folder with the `shap` folder) it will be overwritten.
-
-To exit the tmux session, press `Ctrl+b` then type d.
-
-To reattach, simply type `tmux attach`.
- 
+```
+python rsa.py [suffix of output file]
+```
 
 ## multiAlexMap_top5_v1.5
 Task| Recogniton | Grasping
