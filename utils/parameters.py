@@ -47,6 +47,8 @@ class Params:
         self.TRAIN_PATH = 'data/top_5_compressed/train'
         self.TRAIN_PATH_ALT = 'data/top_5_compressed_old/train'
         self.TEST_PATH = 'data/top_5_compressed/test'
+        self.TRAIN_PATH_SHUFFLE = 'data/data_shuffle/top_5_compressed/train'
+        self.TEST_PATH_SHUFFLE = 'data/data_shuffle/top_5_compressed/test'
         self.TEST_PATH_ALT = 'data/top_5_compressed_old/test'
         self.LABEL_FILE = 'cls_top_5.txt'
 
