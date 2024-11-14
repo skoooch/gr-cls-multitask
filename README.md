@@ -13,7 +13,7 @@ gdown --folder https://drive.google.com/drive/folders/1FBsL4MVpCpqCuobVhH1_23RLR
 ## Running the RSA
 
 ```
-python rsa.py [suffix of output file]
+python3 rsa.py [suffix of output file]
 ```
 
 ## multiAlexMap_top5_v1.5
