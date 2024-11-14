@@ -109,7 +109,7 @@ cube_left_color = 195
 cube_back_color = 205 
 camera_height = 100
 camera_tilt = 20
-shadow_orderings = [cube_front_color, cube_left_color, cube_right_color, cube_back_color]
+shadow_orderings = [cube_front_color, cube_right_color, cube_back_color, cube_left_color]
 # Directory to save the images
 output_dir = 'rectangle_dataset'
 os.makedirs(output_dir, exist_ok=True)
@@ -175,7 +175,7 @@ for width in range(119, max_rect_size):
             proj_back[:, 1] += distance_y
             proj_back[:, 1] = image_size - proj_back[:, 1]
             # this is super convoluted as I really did not want to do actual lighting sim
-            for j, shadow_vec in enumerate([(10,10), (10, -10), (-10, -10), (10, -10)]):
+            for j, shadow_vec in enumerate([(10,10), (10, -10), (-10, -10), (-10, 10)]):
                 img = torch.full((image_size, image_size, 3), 188)
                 depth_img = torch.full((image_size, image_size, 1), -0.2)
                 fill_shadow(img, proj_back[1], proj_back[3], proj_back[2], proj_back[0], shadow_vec, 120, 188)
@@ -184,13 +184,13 @@ for width in range(119, max_rect_size):
                     fill_parallelogram(img, proj_back[0], proj_back[1], proj_back[5], proj_back[4], shadow_orderings[(0 + j) % 4])
                 #left
                 if 1 <= i and i <= 4:
-                    fill_parallelogram(img, proj_back[3], proj_back[1], proj_back[5], proj_back[7], shadow_orderings[(1 + j) % 4])
+                    fill_parallelogram(img, proj_back[3], proj_back[1], proj_back[5], proj_back[7], shadow_orderings[(3 + j) % 4])
                 #right         
                 if 0 >= i or i >= 5:   
-                    fill_parallelogram(img, proj_back[0], proj_back[2], proj_back[6], proj_back[4], shadow_orderings[(2 + j) % 4])
+                    fill_parallelogram(img, proj_back[0], proj_back[2], proj_back[6], proj_back[4], shadow_orderings[(1 + j) % 4])
                 # back
                 if 2 >= i or i >= 7:
-                    fill_parallelogram(img, proj_back[2], proj_back[3], proj_back[7], proj_back[6], shadow_orderings[(3 + j) % 4])
+                    fill_parallelogram(img, proj_back[2], proj_back[3], proj_back[7], proj_back[6], shadow_orderings[(2 + j) % 4])
                 fill_parallelogram(img, proj_back[0], proj_back[1], proj_back[3], proj_back[2], cube_top_color)
                 fill_parallelogram(depth_img, proj_back[0], proj_back[1], proj_back[3], proj_back[2], 0.1)
                 plt.imshow(img)
