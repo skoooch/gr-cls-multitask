@@ -103,61 +103,57 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
     values = (0,0)
     for step, ((img_grp, map_grp, label_grp), (img_cls, map_cls, label_cls)) in image_data:
         optim.zero_grad()
-        
-        print(img_cls[:, 3, :,:].min())
-        print("max")
-        print(img_cls[:, 3, :,:].max())
-    #     output_cls = model(img_cls, is_grasp=False)
-    #     loss_cls = MapLoss(output_cls, map_cls)
-    #     output_grp = model(img_grp, is_grasp=True)
-    #     loss_grp = MapLoss(output_grp, map_grp)
-    #     # Loss fn for CLS/Grasp training
-    #     loss = (params.loss_weight)*loss_grp + (2 - params.loss_weight) * loss_cls
-    #     # Distillation loss (experimental)
-    #     #distill_loss = DistillationLoss(img, model, pretrained_alexnet, model_s_type='alexnetMap', model_t_type='alexnet')
-    #     #loss = loss + distill_loss * params.DISTILL_ALPHA
-    #     if step < n_train:
-    #         loss.backward()
-    #         optim.step()
+        output_cls = model(img_cls, is_grasp=False)
+        loss_cls = MapLoss(output_cls, map_cls)
+        output_grp = model(img_grp, is_grasp=True)
+        loss_grp = MapLoss(output_grp, map_grp)
+        # Loss fn for CLS/Grasp training
+        loss = (params.loss_weight)*loss_grp + (2 - params.loss_weight) * loss_cls
+        # Distillation loss (experimental)
+        #distill_loss = DistillationLoss(img, model, pretrained_alexnet, model_s_type='alexnetMap', model_t_type='alexnet')
+        #loss = loss + distill_loss * params.DISTILL_ALPHA
+        if step < n_train:
+            loss.backward()
+            optim.step()
 
-    #         # Write loss to log file -- 'logs/<model_name>/<model_name>_log.txt'
-    #         # log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=True)
-    #         train_history.append(loss_grp)
-    #         c_train_history.append(loss_cls)
-    #         # Dummie prediction stats
-    #         correct, total = 0, 1
-    #         train_correct += correct
-    #         train_total += total
-    #     else:
-    #         # log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=False)
-    #         val_history.append(loss_grp)
-    #         c_val_history.append(loss_cls)
-    #         # Dummie prediction stats
-    #         correct, total = 0, 1
-    #         val_correct += correct
-    #         val_total += total
+            # Write loss to log file -- 'logs/<model_name>/<model_name>_log.txt'
+            # log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=True)
+            train_history.append(loss_grp)
+            c_train_history.append(loss_cls)
+            # Dummie prediction stats
+            correct, total = 0, 1
+            train_correct += correct
+            train_total += total
+        else:
+            # log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=False)
+            val_history.append(loss_grp)
+            c_val_history.append(loss_cls)
+            # Dummie prediction stats
+            correct, total = 0, 1
+            val_correct += correct
+            val_total += total
                 
-    # # Get testing accuracy stats (CLS / Grasp)
-    # if (epoch % 10 == 1):
-    #     model.eval()
-    #     c_train_acc, c_train_loss = get_cls_acc(model, include_depth=True, seed=SEED, dataset=params.TRAIN_PATH, truncation=None)
-    #     train_acc, train_loss = get_grasp_acc(model, include_depth=True, seed=SEED, dataset=params.TRAIN_PATH, truncation=None)
-    #     c_test_acc, c_test_loss = get_cls_acc(model, include_depth=True, seed=SEED, dataset=params.TEST_PATH, truncation=None)
-    #     test_acc, test_loss = get_grasp_acc(model, include_depth=True, seed=SEED, dataset=params.TRAIN_PATH, truncation=None)
-    #     scheduler.step()
+    # Get testing accuracy stats (CLS / Grasp)
+    if (epoch % 10 == 1):
+        model.eval()
+        c_train_acc, c_train_loss = get_cls_acc(model, include_depth=True, seed=SEED, dataset=params.TRAIN_PATH, truncation=None)
+        train_acc, train_loss = get_grasp_acc(model, include_depth=True, seed=SEED, dataset=params.TRAIN_PATH, truncation=None)
+        c_test_acc, c_test_loss = get_cls_acc(model, include_depth=True, seed=SEED, dataset=params.TEST_PATH, truncation=None)
+        test_acc, test_loss = get_grasp_acc(model, include_depth=True, seed=SEED, dataset=params.TRAIN_PATH, truncation=None)
+        scheduler.step()
         
-    #     # Experimental
-    #     #params.DISTILL_ALPHA /= 2
+        # Experimental
+        #params.DISTILL_ALPHA /= 2
         
-    #     model.train()
+        model.train()
 
-    # # Get training and validation accuracies
-    # val_acc = train_acc # get_acc(val_correct, val_total)
-    # c_val_acc = c_train_acc
-    # # Write epoch loss stats to log file
-    # epoch_logger(params.MODEL_NAME, epoch, train_history, val_history, test_loss, train_acc, val_acc, test_acc, c_train_history, c_val_history, c_test_loss, c_train_acc, c_val_acc, c_test_acc)
-    # # Save checkpoint model -- 'trained-models/<model_name>/<model_name>_epoch<epoch>.pth'
-    # torch.save(model.state_dict(), os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_epoch{epoch}.pth"))
+    # Get training and validation accuracies
+    val_acc = train_acc # get_acc(val_correct, val_total)
+    c_val_acc = c_train_acc
+    # Write epoch loss stats to log file
+    epoch_logger(params.MODEL_NAME, epoch, train_history, val_history, test_loss, train_acc, val_acc, test_acc, c_train_history, c_val_history, c_test_loss, c_train_acc, c_val_acc, c_test_acc)
+    # Save checkpoint model -- 'trained-models/<model_name>/<model_name>_epoch<epoch>.pth'
+    torch.save(model.state_dict(), os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_epoch{epoch}.pth"))
 
-# #Save final epoch model
-#torch.save(model.state_dict(), os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_final.pth"))
+#Save final epoch model
+torch.save(model.state_dict(), os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_final.pth"))

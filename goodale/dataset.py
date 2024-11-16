@@ -9,6 +9,7 @@ import h5py
 import torch
 import math
 import numpy
+import random
 import matplotlib.pyplot as plt
 import torch
 from skimage.draw import polygon, polygon_perimeter
@@ -111,94 +112,94 @@ camera_height = 100
 camera_tilt = 20
 shadow_orderings = [cube_front_color, cube_right_color, cube_back_color, cube_left_color]
 # Directory to save the images
-output_dir = 'rectangle_dataset'
+output_dir = '/scratch/expires-2024-Nov-26/'
 os.makedirs(output_dir, exist_ok=True)
-filename = f'rect_data_angled.hdf5'
+filename = f'rect_data_angled3.hdf5'
 filepath = os.path.join(output_dir, filename)
 h5_file = h5py.File(filepath, 'w')
 angle_num = 8
-data = h5_file.create_dataset('data', shape=(max_rect_size - min_rect_size, max_rect_size - min_rect_size, angle_num, 224, 224, 4), dtype=np.float32, fillvalue=188)
-# Loop over all possible rectangle sizes
-for width in range(119, max_rect_size):
-    for height in range(30, max_rect_size):
-        # Create a blank RGB image with a black background
-        # Calculate top-left and bottom-right coordinates of the white rectangle
-        x1 = (image_size - width) // 2
-        y1 = (image_size - height) // 2
-        x2 = x1 + width
-        y2 = y1 + height
-        z1 = 0
-        z2 = 50
-        cuboid = [(x1, y1), (x1, y2), (x2, y1), (x2, y2)]
-        octagon_center = image_size//2
-        octagon_y = camera_tilt / math.sqrt(2)
-        camera_pos_list = [(octagon_y*1.5, -octagon_y*0.5),
-                      (octagon_y*1.5, octagon_y*0.5),
-                      (octagon_y*0.5, octagon_y*1.5),
-                      (-octagon_y*0.5, octagon_y*1.5),
-                      (-octagon_y*1.5, octagon_y*0.5),
-                      (-octagon_y*1.5, -octagon_y*0.5),
-                      (-octagon_y*0.5, -octagon_y*1.5),
-                      (octagon_y*0.5, -octagon_y*1.5)]
-        for i, camera_pos in enumerate(camera_pos_list):
-            
-            n = (camera_pos[0],camera_pos[1], camera_height)
-            p = (octagon_center + camera_pos[0], octagon_center + camera_pos[1], camera_height)
-            projected_cuboid = []
-            for depth in [20, 0]:
-                for point in cuboid:
-                    t = (n[0]*p[0] - n[0]*point[0] + n[1]*p[1] - n[1]*point[1] + n[2]*p[2] - n[2]*depth) / (n[0]**2 + n[1]**2 + n[2]**2)
-                    projj = (point[0] + t*n[0], point[1] + t*n[1], depth + t*n[2])
-                    projected_cuboid.append(projj)
-            middle_proj_t = (n[0]*p[0] - n[0]*octagon_center + n[1]*p[1] - n[1]*octagon_center + n[2]*p[2]) / (n[0]**2 + n[1]**2 + n[2]**2)
-            middle_proj = (octagon_center + t*n[0], octagon_center + t*n[1], t*n[2])
-
-            orthnorm_basis = gram_schmidt([np.array([projected_cuboid[3][0] - projected_cuboid[0][0],projected_cuboid[3][1] - projected_cuboid[0][1], projected_cuboid[3][2]- projected_cuboid[0][2]]), 
-                                 np.array([projected_cuboid[1][0] - projected_cuboid[0][0],projected_cuboid[1][1]- projected_cuboid[0][1],projected_cuboid[1][2]- projected_cuboid[0][2]])])
-            proj_back = []
-            centroid_x = 0
-            centroid_y = 0
-            for j,point in enumerate(projected_cuboid):
-                abc = np.array(point) - np.array(projected_cuboid[0])
-                x,y = orthnorm_basis
-                d = (x[1]*abc[0] - x[0]*abc[1])/(x[1]*y[0] - y[1]*x[0])
-                t = (abc[0] - d*y[0])/x[0]
-                proj_back.append((t,d))
-                
-                centroid_x += t
-                centroid_y += d
-            distance_x = image_size//2 - centroid_x/8
-            distance_y = image_size//2 - centroid_y/8
-            
-            proj_back = np.array(proj_back)
-            proj_back[:, 0] += distance_x
-            proj_back[:, 1] += distance_y
-            proj_back[:, 1] = image_size - proj_back[:, 1]
-            # this is super convoluted as I really did not want to do actual lighting sim
-            for j, shadow_vec in enumerate([(10,10), (10, -10), (-10, -10), (-10, 10)]):
-                img = torch.full((image_size, image_size, 3), 188)
-                depth_img = torch.full((image_size, image_size, 1), -0.2)
-                fill_shadow(img, proj_back[1], proj_back[3], proj_back[2], proj_back[0], shadow_vec, 120, 188)
-                #front
-                if 3 <= i and i <= 6: 
-                    fill_parallelogram(img, proj_back[0], proj_back[1], proj_back[5], proj_back[4], shadow_orderings[(0 + j) % 4])
-                #left
-                if 1 <= i and i <= 4:
-                    fill_parallelogram(img, proj_back[3], proj_back[1], proj_back[5], proj_back[7], shadow_orderings[(3 + j) % 4])
-                #right         
-                if 0 >= i or i >= 5:   
-                    fill_parallelogram(img, proj_back[0], proj_back[2], proj_back[6], proj_back[4], shadow_orderings[(1 + j) % 4])
-                # back
-                if 2 >= i or i >= 7:
-                    fill_parallelogram(img, proj_back[2], proj_back[3], proj_back[7], proj_back[6], shadow_orderings[(2 + j) % 4])
-                fill_parallelogram(img, proj_back[0], proj_back[1], proj_back[3], proj_back[2], cube_top_color)
-                fill_parallelogram(depth_img, proj_back[0], proj_back[1], proj_back[3], proj_back[2], 0.1)
-                plt.imshow(img)
-                plt.savefig(f"{j}_{i}.png")    
-                plt.close()
-                plt.clf()
-                
-                img = torch.cat((img, depth_img), dim=-1)
-                data[width-30][height-30][i] = img
-        exit()#right#back
+shadow_num =4
+data = h5_file.create_dataset('data', shape=((max_rect_size - min_rect_size), (max_rect_size - min_rect_size)//2, angle_num, shadow_num, 224, 224, 4), fillvalue=188, compression='gzip')
 h5_file.close()
+with h5py.File(filepath, 'a') as h5file:
+    data = h5file["data"]
+    # Loop over all possible rectangle sizes
+    for width in tqdm.tqdm(range(30, max_rect_size)):
+        for height in tqdm.tqdm(range(30, max_rect_size,2)):
+            # Create a blank RGB image with a black background
+            # Calculate top-left and bottom-right coordinates of the white rectangle
+            x1 = (image_size - width) // 2
+            y1 = (image_size - height) // 2
+            x2 = x1 + width
+            y2 = y1 + height
+            z1 = 0
+            z2 = 50
+            cuboid = [(x1, y1), (x1, y2), (x2, y1), (x2, y2)]
+            octagon_center = image_size//2
+            octagon_y = camera_tilt / math.sqrt(2)
+            camera_pos_list = [(octagon_y*1.5, -octagon_y*0.5),
+                        (octagon_y*1.5, octagon_y*0.5),
+                        (octagon_y*0.5, octagon_y*1.5),
+                        (-octagon_y*0.5, octagon_y*1.5),
+                        (-octagon_y*1.5, octagon_y*0.5),
+                        (-octagon_y*1.5, -octagon_y*0.5),
+                        (-octagon_y*0.5, -octagon_y*1.5),
+                        (octagon_y*0.5, -octagon_y*1.5)]
+            for i, camera_pos in enumerate(camera_pos_list):
+                
+                n = (camera_pos[0],camera_pos[1], camera_height)
+                p = (octagon_center + camera_pos[0], octagon_center + camera_pos[1], camera_height)
+                projected_cuboid = []
+                for depth in [20, 0]:
+                    for point in cuboid:
+                        t = (n[0]*p[0] - n[0]*point[0] + n[1]*p[1] - n[1]*point[1] + n[2]*p[2] - n[2]*depth) / (n[0]**2 + n[1]**2 + n[2]**2)
+                        projj = (point[0] + t*n[0], point[1] + t*n[1], depth + t*n[2])
+                        projected_cuboid.append(projj)
+                middle_proj_t = (n[0]*p[0] - n[0]*octagon_center + n[1]*p[1] - n[1]*octagon_center + n[2]*p[2]) / (n[0]**2 + n[1]**2 + n[2]**2)
+                middle_proj = (octagon_center + t*n[0], octagon_center + t*n[1], t*n[2])
+
+                orthnorm_basis = gram_schmidt([np.array([projected_cuboid[3][0] - projected_cuboid[0][0],projected_cuboid[3][1] - projected_cuboid[0][1], projected_cuboid[3][2]- projected_cuboid[0][2]]), 
+                                    np.array([projected_cuboid[1][0] - projected_cuboid[0][0],projected_cuboid[1][1]- projected_cuboid[0][1],projected_cuboid[1][2]- projected_cuboid[0][2]])])
+                proj_back = []
+                centroid_x = 0
+                centroid_y = 0
+                for j,point in enumerate(projected_cuboid):
+                    abc = np.array(point) - np.array(projected_cuboid[0])
+                    x,y = orthnorm_basis
+                    d = (x[1]*abc[0] - x[0]*abc[1])/(x[1]*y[0] - y[1]*x[0])
+                    t = (abc[0] - d*y[0])/x[0]
+                    proj_back.append((t,d))
+                    
+                    centroid_x += t
+                    centroid_y += d
+                distance_x = image_size//2 - centroid_x/8
+                distance_y = image_size//2 - centroid_y/8
+                
+                proj_back = np.array(proj_back)
+                proj_back[:, 0] += distance_x
+                proj_back[:, 1] += distance_y
+                proj_back[:, 1] = image_size - proj_back[:, 1]
+                # this is super convoluted as I really did not want to do actual lighting sim
+                for j, shadow_vec in enumerate([(10,10), (10, -10), (-10, -10), (-10, 10)]):
+                    img = torch.full((image_size, image_size, 3), 188)
+                    depth_img = torch.full((image_size, image_size, 1), 2)
+                    fill_shadow(img, proj_back[5], proj_back[7], proj_back[6], proj_back[4], shadow_vec, 120, 188)
+                    #front
+                    if 3 <= i and i <= 6: 
+                        fill_parallelogram(img, proj_back[0], proj_back[1], proj_back[5], proj_back[4], shadow_orderings[(0 + j) % 4])
+                    #left
+                    if 1 <= i and i <= 4:
+                        fill_parallelogram(img, proj_back[3], proj_back[1], proj_back[5], proj_back[7], shadow_orderings[(3 + j) % 4])
+                    #right         
+                    if 0 >= i or i >= 5:   
+                        fill_parallelogram(img, proj_back[0], proj_back[2], proj_back[6], proj_back[4], shadow_orderings[(1 + j) % 4])
+                    # back
+                    if 2 >= i or i >= 7:
+                        fill_parallelogram(img, proj_back[2], proj_back[3], proj_back[7], proj_back[6], shadow_orderings[(2 + j) % 4])
+                    fill_parallelogram(img, proj_back[0], proj_back[1], proj_back[3], proj_back[2], cube_top_color)
+                    fill_parallelogram(depth_img, proj_back[0], proj_back[1], proj_back[3], proj_back[2], 1)                
+                    img = torch.cat((img, depth_img), dim=-1)
+                    
+                    data[width-30, (height-30)//2,i,j,:,:,:] = np.array(img)    
+                    h5file.flush()    
+h5file.close()
