@@ -2,18 +2,20 @@ import torch
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
-from utils.parameters import Params
+from parameters import Params
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 import os
 from torchvision.models import alexnet
 params = Params()
 import copy 
 
-model_name = params.MODEL_NAME
-weights_dir = params.MODEL_PATH
-weights_path = os.path.join("../", weights_dir, model_name, model_name + '_final.pth')
+
 class Multi_AlexnetMap_Width(nn.Module):
-    def __init__(self):
+    def __init__(self, weights_path):
         super(Multi_AlexnetMap_Width, self).__init__()
         trained_model =  Multi_AlexnetMap_v3().to('cuda')
         trained_model.load_state_dict(torch.load(weights_path))
@@ -42,7 +44,13 @@ class Multi_AlexnetMap_Width(nn.Module):
             nn.Dropout(0.3),
         )
         self.features.load_state_dict(trained_model.features.state_dict())
-        self.dense = nn.Linear(64*13*13, 1)
+        self.hidden = nn.Sequential(nn.Linear(64*13*13, 4096),
+                                    nn.ReLU(inplace=True),
+                                    nn.Dropout(),
+                                    nn.Linear(4096,4096),
+                                    nn.ReLU(inplace=True))
+        self.dense = nn.Linear(4096, 1)
+        
         for param in self.rgb_features.parameters():
             param.requires_grad = False
         for param in self.d_features.parameters():
@@ -58,6 +66,10 @@ class Multi_AlexnetMap_Width(nn.Module):
         d = self.d_features(d)
         x = torch.cat((rgb, d), dim=1)
         x = self.features(x)
+        x = x.flatten(start_dim=1)
+        
+        for layer in self.hidden:
+            x = layer(x)
         out = self.dense(x)
         return out
 
@@ -68,3 +80,10 @@ class Multi_AlexnetMap_Width(nn.Module):
         
         for param in self.d_features.parameters():
             param.requires_grad = True
+def test_batch():
+    model_name = params.MODEL_NAME
+    weights_dir = params.MODEL_PATH
+    weights_path = os.path.join(weights_dir, model_name, model_name + '_final.pth')
+    model =  Multi_AlexnetMap_Width(weights_path).to('cuda')
+    img = torch.zeros((5,4,224,224)).to('cuda')
+    print(model(img).detach())
