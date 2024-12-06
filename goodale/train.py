@@ -20,6 +20,9 @@ weights_path = os.path.join(weights_dir, model_name, model_name + '_final.pth')
 model =  Multi_AlexnetMap_Width(weights_path).to('cuda')
 batch_size = 4
 data = torch.load("goodale/rectangle_dataset/indices.pt", weights_only=True)[:, 0, :]
+perm = torch.randperm(data.shape[0])
+idx = perm[:1000]
+data = data[idx]
 y = (data[:, 0] + 30).type(torch.float)
 X_train, X_test, y_train, y_test = train_test_split(
     data, y, test_size=0.2, random_state=42, shuffle=True)
@@ -27,9 +30,8 @@ X_train, X_validation, y_train, y_validation = train_test_split(X_train, y_train
 train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
 training_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 validation_dataset = torch.utils.data.TensorDataset(X_validation, y_validation)
-validation_loader = torch.utils.data.DataLoader(validation_dataset, batch_size=4, shuffle=False)
+validation_loader = torch.utils.data.DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
 optim = Adam(model.parameters(), lr=params.LR)
-scheduler = torch.optim.lr_scheduler.StepLR(optim, 25, 0.5)
 loss_fn = torch.nn.MSELoss()
 running_loss = 0
 
@@ -37,7 +39,7 @@ timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
 writer = SummaryWriter('runs/goodale_sim_{}'.format(timestamp))
 output_dir = '/scratch/expires-2024-Nov-26/'
 os.makedirs(output_dir, exist_ok=True)
-filename = f'rect_data_angled2.hdf5'
+filename = f'rect_data_angled3.hdf5'
 filepath = os.path.join(output_dir, filename)
 h5_file = h5py.File(filepath, 'r')
 image_data = h5_file.get("data")
@@ -74,8 +76,8 @@ for epoch in range(num_epochs):
 
         # Gather data and report
         running_loss += loss.item()
-        if i % 500 == 499:
-            last_loss = running_loss / 1000 # loss per batch
+        if i % 10 == 9:
+            last_loss = running_loss / 10 # loss per batch
             print('  batch {} loss: {}'.format(i + 1, last_loss))
             tb_x = epoch * len(training_loader) + i + 1
             writer.add_scalar('Loss/train', last_loss, tb_x)
@@ -88,10 +90,9 @@ for epoch in range(num_epochs):
 
     # Disable gradient computation and reduce memory consumption.
     with torch.no_grad():
+        
         for i, vdata in enumerate(validation_loader):
             vinputs, vlabels = vdata
-            
-            
             img_set = np.ndarray((batch_size,4, 224,224,4))
             for j in range(vinputs.shape[0]):     
                 img_set[j] = image_data[vinputs[j, 0], vinputs[j, 1], vinputs[j, 2]]
@@ -107,22 +108,19 @@ for epoch in range(num_epochs):
             # Compute the loss and its gradients
             vloss = loss_fn(voutputs[:, 0], vlabels.to("cuda"))
             running_vloss += vloss
-    avg_vloss = running_vloss / (i + 1)
+    avg_vloss = running_vloss / (len(validation_loader))
     print('LOSS train {} valid {}'.format(avg_loss, avg_vloss))
-
+    
     # Log the running loss averaged per batch
     # for both training and validation
     writer.add_scalars('Training vs. Validation Loss',
                     { 'Training' : avg_loss, 'Validation' : avg_vloss },
                     epoch + 1)
     writer.flush()
-
     # Track best performance, and save the model's state
     if avg_vloss < best_vloss:
         best_vloss = avg_vloss
-        model_path = 'trained_models/model_{}_{}'.format(timestamp, epoch)
+        model_path = 'goodale/trained_models/model_{}_{}'.format(timestamp, epoch)
         torch.save(model.state_dict(), model_path)
-    epoch += 1
-    scheduler.step()
-model_path = 'trained_models/model_{}_final'.format(timestamp, epoch)
+model_path = 'goodale/trained_models/model_{}_final'.format(timestamp, epoch)
 torch.save(model.state_dict(), model_path)

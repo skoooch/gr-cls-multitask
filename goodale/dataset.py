@@ -1,5 +1,6 @@
 
 from tracemalloc import start
+from more_itertools import first
 import torch
 import tqdm
 background_color=(188,188,188)
@@ -13,7 +14,16 @@ import random
 import matplotlib.pyplot as plt
 import torch
 from skimage.draw import polygon, polygon_perimeter
+from scipy.ndimage.interpolation import rotate as rotate_image
 import numpy as np
+import numpy as np
+
+def rotate(p, origin=(0, 0), degrees=0):
+    R = np.array([[np.cos(angle), -np.sin(angle)],
+                  [np.sin(angle),  np.cos(angle)]])
+    o = np.atleast_2d(origin)
+    p = np.atleast_2d(p)
+    return np.squeeze((R @ (p.T-o.T) + o.T).T)
 
 def fill_point(array, p, fill_value = 0):
     p //= 1
@@ -112,15 +122,16 @@ camera_height = 100
 camera_tilt = 20
 shadow_orderings = [cube_front_color, cube_right_color, cube_back_color, cube_left_color]
 # Directory to save the images
-output_dir = '/scratch/expires-2024-Nov-26/'
+output_dir = '/scratch/expires-2024-Dec-14/'
 os.makedirs(output_dir, exist_ok=True)
-filename = f'rect_data_angled3.hdf5'
+filename = f'rect_data_angled.hdf5'
 filepath = os.path.join(output_dir, filename)
 h5_file = h5py.File(filepath, 'w')
 angle_num = 8
 shadow_num =4
 data = h5_file.create_dataset('data', shape=((max_rect_size - min_rect_size), (max_rect_size - min_rect_size)//2, angle_num, shadow_num, 224, 224, 4), fillvalue=188, compression='gzip')
 h5_file.close()
+first_angle = 0
 with h5py.File(filepath, 'a') as h5file:
     data = h5file["data"]
     # Loop over all possible rectangle sizes
@@ -145,8 +156,8 @@ with h5py.File(filepath, 'a') as h5file:
                         (-octagon_y*1.5, -octagon_y*0.5),
                         (-octagon_y*0.5, -octagon_y*1.5),
                         (octagon_y*0.5, -octagon_y*1.5)]
+            
             for i, camera_pos in enumerate(camera_pos_list):
-                
                 n = (camera_pos[0],camera_pos[1], camera_height)
                 p = (octagon_center + camera_pos[0], octagon_center + camera_pos[1], camera_height)
                 projected_cuboid = []
@@ -157,25 +168,31 @@ with h5py.File(filepath, 'a') as h5file:
                         projected_cuboid.append(projj)
                 middle_proj_t = (n[0]*p[0] - n[0]*octagon_center + n[1]*p[1] - n[1]*octagon_center + n[2]*p[2]) / (n[0]**2 + n[1]**2 + n[2]**2)
                 middle_proj = (octagon_center + t*n[0], octagon_center + t*n[1], t*n[2])
-
                 orthnorm_basis = gram_schmidt([np.array([projected_cuboid[3][0] - projected_cuboid[0][0],projected_cuboid[3][1] - projected_cuboid[0][1], projected_cuboid[3][2]- projected_cuboid[0][2]]), 
                                     np.array([projected_cuboid[1][0] - projected_cuboid[0][0],projected_cuboid[1][1]- projected_cuboid[0][1],projected_cuboid[1][2]- projected_cuboid[0][2]])])
+                if len(orthnorm_basis) > 1: past_orth = orthnorm_basis
                 proj_back = []
-                centroid_x = 0
-                centroid_y = 0
                 for j,point in enumerate(projected_cuboid):
                     abc = np.array(point) - np.array(projected_cuboid[0])
-                    x,y = orthnorm_basis
+                    if len(orthnorm_basis) > 1: x,y = orthnorm_basis
+                    else: x,y = past_orth
                     d = (x[1]*abc[0] - x[0]*abc[1])/(x[1]*y[0] - y[1]*x[0])
                     t = (abc[0] - d*y[0])/x[0]
                     proj_back.append((t,d))
                     
-                    centroid_x += t
-                    centroid_y += d
+                proj_back = np.array(proj_back)
+                #Rotate cube back to the correct orientation
+                u = proj_back[2] - proj_back[0]
+                v = np.array([u[0], 0])
+                angle = math.acos(np.dot(u, v)/(np.linalg.norm(u)*np.linalg.norm(v)))
+                proj_back = rotate(proj_back,proj_back[0], -angle)
+                #----------------------------
+                centroid_x = proj_back[:, 0].sum()
+                centroid_y = proj_back[:, 1].sum()
                 distance_x = image_size//2 - centroid_x/8
                 distance_y = image_size//2 - centroid_y/8
                 
-                proj_back = np.array(proj_back)
+                
                 proj_back[:, 0] += distance_x
                 proj_back[:, 1] += distance_y
                 proj_back[:, 1] = image_size - proj_back[:, 1]
@@ -199,7 +216,7 @@ with h5py.File(filepath, 'a') as h5file:
                     fill_parallelogram(img, proj_back[0], proj_back[1], proj_back[3], proj_back[2], cube_top_color)
                     fill_parallelogram(depth_img, proj_back[0], proj_back[1], proj_back[3], proj_back[2], 1)                
                     img = torch.cat((img, depth_img), dim=-1)
-                    
-                    data[width-30, (height-30)//2,i,j,:,:,:] = np.array(img)    
-                    h5file.flush()    
+                    print("%d,%d,%d,%d" % (width-30, (height-30)//2, i, j))
+                    data[width-30, (height-30)//2,i,j,:,:,:] = np.array(img) 
+                    h5file.flush() 
 h5file.close()
