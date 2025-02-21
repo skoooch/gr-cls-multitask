@@ -8,6 +8,7 @@ import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
+from single_task_models.alexnet import AlexnetMap_v3
 import os
 from torchvision.models import alexnet
 params = Params()
@@ -15,9 +16,12 @@ import copy
 
 
 class Multi_AlexnetMap_Width(nn.Module):
-    def __init__(self, weights_path):
+    def __init__(self, weights_path, map_model):
         super(Multi_AlexnetMap_Width, self).__init__()
-        trained_model =  Multi_AlexnetMap_v3().to('cuda')
+        if map_model:
+            trained_model = AlexnetMap_v3().to('cuda')
+        else:
+            trained_model =  Multi_AlexnetMap_v3().to('cuda')
         trained_model.load_state_dict(torch.load(weights_path))
         pretrained_alexnet = alexnet(pretrained=True)
         self.rgb_features = copy.deepcopy(pretrained_alexnet.features[:3])
@@ -28,28 +32,28 @@ class Multi_AlexnetMap_Width(nn.Module):
             nn.Conv2d(64+64, 32, kernel_size=5, padding=2),
             #nn.BatchNorm2d(192),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
+            nn.Dropout(0),
             nn.MaxPool2d(kernel_size=3, stride=2),
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             #nn.BatchNorm2d(384),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
+            nn.Dropout(0),
             nn.Conv2d(64, 64, kernel_size=3, padding=1),
             #nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
+            nn.Dropout(0),
             nn.Conv2d(64, 64, kernel_size=3, padding=1),
             #nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
-            nn.Dropout(0.3),
+            nn.Dropout(0),
         )
-        self.features.load_state_dict(trained_model.features.state_dict())
-        self.hidden = nn.Sequential(nn.Linear(64*13*13, 4096),
+        self.features.load_state_dict(trained_model.features.state_dict(), strict=False)
+        self.hidden = nn.Sequential(nn.Linear(64*13*13, 500),
                                     nn.ReLU(inplace=True),
                                     nn.Dropout(),
-                                    nn.Linear(4096,4096),
-                                    nn.ReLU(inplace=True))
-        self.dense = nn.Linear(4096, 1)
+                                    nn.Linear(500,100),)
+                                    
+        self.dense = nn.Linear(100, 1)
         
         for param in self.rgb_features.parameters():
             param.requires_grad = False
@@ -80,6 +84,7 @@ class Multi_AlexnetMap_Width(nn.Module):
         
         for param in self.d_features.parameters():
             param.requires_grad = True
+
 def test_batch():
     model_name = params.MODEL_NAME
     weights_dir = params.MODEL_PATH
