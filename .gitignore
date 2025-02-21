@@ -16,3 +16,4 @@ dump
 .DS*
 .ipynb_checkpoints
 .idea
+*runs/
