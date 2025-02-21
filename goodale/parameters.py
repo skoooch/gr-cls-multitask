@@ -59,3 +59,7 @@ class Params:
 
         self.MODEL_LOG_PATH = 'trained-models/%s' % self.MODEL_NAME
         self.LOG_PATH = 'logs'
+
+        self.N_IMG = 80
+        self.vis_img_size = (224, 224)
+        self.vis_layers = ['3']
