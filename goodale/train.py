@@ -6,23 +6,29 @@ from torch.optim import Adam
 from parameters import Params
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from tqdm import tqdm
-from utils.parameters import Params
+#from utils.parameters import Params
 from torch.utils.tensorboard import SummaryWriter
 from datetime import datetime
 import os
 import h5py
 import numpy as np
+torch.manual_seed(0)
 params = Params()
+model_type = "grasp"
 num_epochs = 10
 model_name = params.MODEL_NAME
 weights_dir = params.MODEL_PATH
 weights_path = os.path.join(weights_dir, model_name, model_name + '_final.pth')
-model =  Multi_AlexnetMap_Width(weights_path).to('cuda')
+weights_path = os.path.join(weights_dir, f'alexnetMap_{model_type}.pth')
+model =  Multi_AlexnetMap_Width(weights_path, True).to('cuda')
+
 batch_size = 4
 data = torch.load("goodale/rectangle_dataset/indices.pt", weights_only=True)[:, 0, :]
 perm = torch.randperm(data.shape[0])
-idx = perm[:1000]
+idx = perm[:15000]
 data = data[idx]
+# data = data[data[:, 3] == 0]
+# data = data[data[:, 2] == 0] 
 y = (data[:, 0] + 30).type(torch.float)
 X_train, X_test, y_train, y_test = train_test_split(
     data, y, test_size=0.2, random_state=42, shuffle=True)
@@ -36,10 +42,10 @@ loss_fn = torch.nn.MSELoss()
 running_loss = 0
 
 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-writer = SummaryWriter('runs/goodale_sim_{}'.format(timestamp))
-output_dir = '/scratch/expires-2024-Nov-26/'
+writer = SummaryWriter('runs/goodale_sim_{}_move'.format(model_type, timestamp))
+output_dir = '/scratch/expires-2025-Feb-15/'
 os.makedirs(output_dir, exist_ok=True)
-filename = f'rect_data_angled3.hdf5'
+filename = f'rect_data_angled.hdf5'
 filepath = os.path.join(output_dir, filename)
 h5_file = h5py.File(filepath, 'r')
 image_data = h5_file.get("data")
@@ -66,18 +72,16 @@ for epoch in range(num_epochs):
         img = torch.where(img == 2, 0.1, img)
         img = torch.where(img == 1, -0.1, img)
         outputs = model(img.permute(0, 3, 1, 2))
-        
         # Compute the loss and its gradients
         loss = loss_fn(outputs[:, 0], labels.to("cuda"))
         loss.backward()
-
         # Adjust learning weights
         optim.step()
 
         # Gather data and report
         running_loss += loss.item()
-        if i % 10 == 9:
-            last_loss = running_loss / 10 # loss per batch
+        if i % 100 == 99:
+            last_loss = running_loss / 100 # loss per batch
             print('  batch {} loss: {}'.format(i + 1, last_loss))
             tb_x = epoch * len(training_loader) + i + 1
             writer.add_scalar('Loss/train', last_loss, tb_x)
@@ -104,7 +108,6 @@ for epoch in range(num_epochs):
             img = torch.where(img == 2, 0.1, img)
             img = torch.where(img == 1, -0.1, img)
             voutputs = model(img.permute(0, 3, 1, 2))
-            
             # Compute the loss and its gradients
             vloss = loss_fn(voutputs[:, 0], vlabels.to("cuda"))
             running_vloss += vloss
@@ -120,7 +123,7 @@ for epoch in range(num_epochs):
     # Track best performance, and save the model's state
     if avg_vloss < best_vloss:
         best_vloss = avg_vloss
-        model_path = 'goodale/trained_models/model_{}_{}'.format(timestamp, epoch)
+        model_path = 'goodale/trained_models/model_{}_angle_{}'.format(model_type, epoch)
         torch.save(model.state_dict(), model_path)
-model_path = 'goodale/trained_models/model_{}_final'.format(timestamp, epoch)
+model_path = 'goodale/trained_models/model_{}_angle_final'.format(model_type, epoch)
 torch.save(model.state_dict(), model_path)

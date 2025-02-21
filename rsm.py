@@ -128,7 +128,7 @@ for i in [1, 5, 8, 11]:
     act_array = get_feature_activations(model, images, labels, layer_i=i)
     result = squareform(pdist(act_array, metric="correlation"))
     np.save("saved_model_rsms/features_%s.npy" % (i-1), result)
-exit()
+
 num_images_per_label = 5
 # embedding = MDS.cmdscale(result, 2)[0]
 # embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories

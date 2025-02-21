@@ -4,6 +4,7 @@ from more_itertools import first
 import torch
 import tqdm
 background_color=(188,188,188)
+from random import randint
 import numpy as np
 import os
 import h5py
@@ -122,13 +123,13 @@ camera_height = 100
 camera_tilt = 20
 shadow_orderings = [cube_front_color, cube_right_color, cube_back_color, cube_left_color]
 # Directory to save the images
-output_dir = '/scratch/expires-2024-Dec-14/'
+output_dir = '/scratch/expires-2025-Feb-06/'
 os.makedirs(output_dir, exist_ok=True)
 filename = f'rect_data_angled.hdf5'
 filepath = os.path.join(output_dir, filename)
 h5_file = h5py.File(filepath, 'w')
 angle_num = 8
-shadow_num =4
+shadow_num = 4
 data = h5_file.create_dataset('data', shape=((max_rect_size - min_rect_size), (max_rect_size - min_rect_size)//2, angle_num, shadow_num, 224, 224, 4), fillvalue=188, compression='gzip')
 h5_file.close()
 first_angle = 0
@@ -186,6 +187,8 @@ with h5py.File(filepath, 'a') as h5file:
                 v = np.array([u[0], 0])
                 angle = math.acos(np.dot(u, v)/(np.linalg.norm(u)*np.linalg.norm(v)))
                 proj_back = rotate(proj_back,proj_back[0], -angle)
+                # angle = randint(-30, 30)
+                # proj_back = rotate(proj_back,proj_back[0], -angle)
                 #----------------------------
                 centroid_x = proj_back[:, 0].sum()
                 centroid_y = proj_back[:, 1].sum()
@@ -196,6 +199,12 @@ with h5py.File(filepath, 'a') as h5file:
                 proj_back[:, 0] += distance_x
                 proj_back[:, 1] += distance_y
                 proj_back[:, 1] = image_size - proj_back[:, 1]
+                margin_x = image_size//2 - width//2 - 20
+                margin_y = image_size//2 - height//2 - 20
+                shift_x = randint(-margin_x, margin_x)
+                shift_y = randint(-margin_y, margin_y)
+                proj_back[:, 0] += shift_x
+                proj_back[:, 1] += shift_y
                 # this is super convoluted as I really did not want to do actual lighting sim
                 for j, shadow_vec in enumerate([(10,10), (10, -10), (-10, -10), (-10, 10)]):
                     img = torch.full((image_size, image_size, 3), 188)
@@ -216,7 +225,6 @@ with h5py.File(filepath, 'a') as h5file:
                     fill_parallelogram(img, proj_back[0], proj_back[1], proj_back[3], proj_back[2], cube_top_color)
                     fill_parallelogram(depth_img, proj_back[0], proj_back[1], proj_back[3], proj_back[2], 1)                
                     img = torch.cat((img, depth_img), dim=-1)
-                    print("%d,%d,%d,%d" % (width-30, (height-30)//2, i, j))
                     data[width-30, (height-30)//2,i,j,:,:,:] = np.array(img) 
                     h5file.flush() 
 h5file.close()
