@@ -17,3 +17,5 @@ dump
 .ipynb_checkpoints
 .idea
 *runs/
+*.mat
+*goodale/trained_models/*
