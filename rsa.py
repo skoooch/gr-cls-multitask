@@ -111,7 +111,7 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
     corrs = []
-    data = get_data_matlab(task,avr=True)
+    data = get_data_matlab(task,suffix,avr=True)
     for i in range(len(times)):
         corrs.append([])
         labels = data.keys()
@@ -121,12 +121,13 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
         for cat in label_order:
             points_per_object[cat] = 0
             for object_data in data[cat]:
-                if task == "cls" or task == "grasp":
-                    for eeg in object_data:
-                        relevant_signal = eeg[time_period[0]:time_period[1], :]
-                        activations_flat.append(relevant_signal.flatten())
-                        points_per_object[cat] += 1
-                else:
+                # if task == "cls" or task == "grasp":
+                #     for eeg in object_data:
+                #         relevant_signal = eeg[time_period[0]:time_period[1], :]
+                #         activations_flat.append(relevant_signal.flatten())
+                #         points_per_object[cat] += 1
+                # else:
+                    
                     relevant_signal = object_data[time_period[0]:time_period[1], :]
                     activations_flat.append(relevant_signal.flatten())
                     points_per_object[cat] += 1
@@ -147,7 +148,7 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
             rsm1_flat = result[np.triu_indices(result.shape[0], k=1)]
             rsm2_flat = model_matrix[np.triu_indices(model_matrix.shape[0], k=1)]
             ## THIS IS WHERE THE CORRELATION IS CALCULATED
-            corrs[i].append(pearsonr(rsm1_flat, rsm2_flat), 0)
+            corrs[i].append(pearsonr(rsm1_flat, rsm2_flat))
             
     # Plot for each time period
     corrs = np.array(corrs)
@@ -178,22 +179,28 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     plt.xticks(ind+width,ticks) 
     plt.legend(bars, ('1st Layer', '2nd Layer', '3rd Layer', '4th Layer', '5th Layer') ) 
     if task == "class" or task == "cls":
-        plt.title(f"Correlation of EEG RSM with Model RSMs: Recognition Task")
+        plt.title(f"Correlation of EEG RSM with Model RSMs: Recognition Task - p{name_suffix}")
     else:
-        plt.title(f"Correlation of EEG RSM with Model RSMs: Grasp Task")
+        plt.title(f"Correlation of EEG RSM with Model RSMs: Grasp Task - p{name_suffix}")
     plt.xlabel("Time Periods (ms from beginning of stimulus)")
     plt.ylabel("Correlation")
     plt.axhline(y=0, color='black', linestyle='-')
     plt.figtext(0.1, 0.01, "*: p-value < 0.05", ha="center", fontsize=10)
     plt.savefig("vis/rsm_correlation/%s_%s" % (task, name_suffix))
 suffix = sys.argv[1]
-for task in ['class']:
+task = sys.argv[2]
+single = sys.argv[3]
+for task in [task]:
     #change these as necessary
     desire_times = [(-50, 0), (0, 75), (75, 125),(125, 175),(175, 225),(225,300), (300, 375)]  
+    #desire_times = [(0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 300)]  
     #timepoints are identical across the files so this can stay the same
     tp_file = 'data/timepoints_8_cls.csv'
     timepoints = np.loadtxt(tp_file, delimiter=',') 
     #convert desired timepoints into actual time points
     times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
-    model_rsm_folder_path = 'saved_model_rsms/'
+    if single == "True":      
+        model_rsm_folder_path = f'saved_model_rsms/{task}/'
+    else:
+        model_rsm_folder_path = f'saved_model_rsms/'
     comparative_analysis(model_rsm_folder_path, timepoints, times, task, name_suffix=suffix)
