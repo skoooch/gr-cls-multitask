@@ -2,19 +2,7 @@
 Multi-tasking model for grasping and classification (in progress)
 
 you can see the model architecture in [multi_task_models/grcn_multi_alex.py](multi_task_models/grcn_multi_alex.py) 
-# RSA instructions
-## First step is to download the matlab data!
 
-Run this from inside the `matlab_files` directory 
-
-```
-gdown --folder https://drive.google.com/drive/folders/1FBsL4MVpCpqCuobVhH1_23RLRHDfx0Y7?ths=true
-```
-## Running the RSA
-
-```
-python3 rsa.py [suffix of output file]
-```
 
 ## multiAlexMap_top5_v1.5
 Task| Recogniton | Grasping
