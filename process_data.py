@@ -1,6 +1,11 @@
 import numpy as np
 from scipy.signal import butter, sosfilt, filtfilt
 import scipy.io
+
+"""
+This script calculates the RSMs for the EEG data.
+
+"""
 # Define the band-pass filter function
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyquist = 0.5 * fs  # Nyquist frequency
@@ -38,6 +43,7 @@ def get_data(task, avr=False):
     return all_data
 
 def get_data_matlab(task,num, avr=False):
+    
     lowcut = 0.2  # Low cutoff frequency (Hz)
     highcut = 115  # High cutoff frequency (Hz)
     fs = 512  # Sampling frequency (Hz), adapt this to your actual EEG data sampling rate
@@ -47,7 +53,7 @@ def get_data_matlab(task,num, avr=False):
     dataset = []
     if task == "grasp":
         removed_participants = [2,11,7,3,10,12,13] # add more participants as needed
-        removed_participants = [2,10,12,13]
+        # removed_participants = [2,10,12,13]
     else:
         removed_participants = [1,10,12,13]
     for i in range(1,17):
@@ -71,9 +77,10 @@ def get_data_matlab(task,num, avr=False):
             for j in range(1, len(object_to_average_over_exp)):
                 concat_begin = np.concatenate((concat_begin, object_to_average_over_exp[j]), axis=0)
             summed = concat_begin.sum(axis=0)/len(object_to_average_over_exp)
-            # summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
+            # 20:23 + 56: is all the back
+            summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
             assert(summed.shape[0] == 307)
-            all_data[category].append(summed[:, 56:])
+            all_data[category].append(summed)
     return all_data
 
 # # this function was just to test whether the new data aligned with the new stuff (it did not...)
