@@ -16,7 +16,26 @@ import numpy as np
 from scipy.cluster.hierarchy import dendrogram, linkage, cophenet
 from own_images import load_images_to_arrays
 
-def get_feature_activations(model, images, labels, layer_i=0):
+"""
+This script calculates representational similarity matrices (RSMs) for a multi-task model.
+It loads images, extracts features from the model, computes pairwise distances between feature activations,
+and visualizes the results using multidimensional scaling (MDS).
+"""
+def get_feature_activations(model, images, labels, layer_i=0, top = None,j=1, top_size=13, is_grasp=0):
+    """
+    Get feature activations from the model.
+    Args:
+        model: The model to extract activations from.
+        images: The images to process.
+        labels: The labels for the images.
+        layer_i: The layer index to extract features from.
+        top: The top indices for the activations.
+        j: The index for the activations.
+        top_size: The size of the top activations.
+        is_grasp: Whether the task is a grasping task.
+    Returns:
+        act_array: The activations as a numpy array.
+    """
     activations = {}
     labels_repeated = np.repeat(labels, 5)
     for i, (img, label) in enumerate(zip(images, labels_repeated)):
@@ -28,7 +47,10 @@ def get_feature_activations(model, images, labels, layer_i=0):
         d = model.d_features(d)
         x = torch.cat((rgb, d), dim=1)
         next = model.features[:layer_i](x)
-        activations[label].append(next)
+        if j == 1:
+            activations[label].append(next[:,top[j, :top_size//2,is_grasp],:,:])
+        else:
+            activations[label].append(next[:,top[j, :,is_grasp],:,:])
     activations_flat = []
     for label in labels:
         for act in activations[label]:
@@ -37,7 +59,19 @@ def get_feature_activations(model, images, labels, layer_i=0):
     act_array = np.asarray(activations_flat)
     return act_array
 
-def get_rgb_activations(model, images, labels, depth=False):
+def get_rgb_activations(model, images, labels, depth=False, top = None, is_grasp=0):
+    """
+    Get RGB activations from the model.
+    Args:
+        model: The model to extract activations from.
+        images: The images to process.
+        labels: The labels for the images.
+        depth: Whether to include depth information.
+        top: The top indices for the activations.
+        is_grasp: Whether the task is a grasping task.
+    Returns:
+        act_array: The activations as a numpy array.
+    """
     activations = {}
     labels_repeated = np.repeat(labels, 5)
     for i, (img, label) in enumerate(zip(images, labels_repeated)):
@@ -45,10 +79,10 @@ def get_rgb_activations(model, images, labels, depth=False):
         if depth:
             d = torch.unsqueeze(img[:, 3, :, :], dim=1)
             d = torch.cat((d, d, d), dim=1)
-            activation = torch.concat((model.rgb_features[0](img[:, :3, :, :]), model.d_features(d)), dim=1)
+            activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,top[0, :,is_grasp],:,:], model.d_features(d)), dim=1)
             activations[label].append(activation)
         else:
-            activations[label].append(model.rgb_features[0](img[:, :3, :, :]))
+            activations[label].append(model.rgb_features[0](img[:, :3, :, :])[:,top[0, :,is_grasp],:,:])
     activations_flat = []
     for label in labels:
         for act in activations[label]:
@@ -123,13 +157,29 @@ model = get_model(MODEL_PATH, DEVICE)
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
 labels = ['A', 'B', 'C', 'D', 'E']
 labels_repeated = np.repeat(labels, 5)
-act_array = get_feature_activations(model, images, labels, layer_i=1)
-for i in [1, 5, 8, 11]:
-    act_array = get_feature_activations(model, images, labels, layer_i=i)
+top_32 = torch.tensor(np.load("smallest20.npy"), dtype=int).to("cuda")
+for is_grasp in range(0, 2):
+    act_array = get_rgb_activations(model, images, labels, top=top_32, is_grasp=is_grasp)
     result = squareform(pdist(act_array, metric="correlation"))
-    np.save("saved_model_rsms/grasp/features_%s.npy" % (i-1), result)
-
+    if is_grasp == 0:
+        np.save("saved_model_rsms/class/smallest20/rgb.npy", result)
+    else:
+        np.save("saved_model_rsms/grasp/smallest20/rgb.npy", result)
+j = 0
+top_size = 13
+for i in [1, 5, 8, 11]:
+    j += 1
+    for is_grasp in range(0, 2):
+        act_array = get_feature_activations(model, images, labels, layer_i=i,top=top_32, j=j, top_size=top_size, is_grasp=is_grasp)
+        result = squareform(pdist(act_array, metric="correlation"))
+        if is_grasp == 0:
+            np.save("saved_model_rsms/class/smallest20/features_%s.npy" % (i-1), result)
+        else:
+            np.save("saved_model_rsms/grasp/smallest20/features_%s.npy" % (i-1), result)
+exit() # remove this if you want to do the visualization
 num_images_per_label = 5
+
+#-------------- From here down is just for visualization ----------------
 # embedding = MDS.cmdscale(result, 2)[0]
 # embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories
 #             for i, cat in enumerate(labels)}   
@@ -154,6 +204,7 @@ num_images_per_label = 5
 #                 label = cat)
 # ax.legend()
 # plt.savefig('vis/rsm/rgb_1_avr.png')  
+
 mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}  
 embedding = MDS.two_mds(result)
 embedding = {cat:embedding[i*num_images_per_label:(i+1)*num_images_per_label] # split into categories

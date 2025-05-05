@@ -12,6 +12,7 @@ from PIL import Image
 from scipy.spatial.distance import squareform, pdist
 from sklearn import manifold, datasets
 import numpy as np
+from shapley_analysis import confidence_interval
 from scipy import stats
 from scipy.spatial.distance import cosine
 from scipy.stats import pearsonr, spearmanr
@@ -107,7 +108,17 @@ def perform_rsm_vis(times, task="cls"):
         plt.title("%sms to %sms Averaged grasp (correlation)" % (times[i][0], times[i][1]))
         plt.savefig('vis/%s/ts%s_correlation_avr.png' % (task, (i+1)))   
         plt.clf()
+        
 def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suffix="plot"):
+    """
+    Compare the RSM of EEG data with the RSM of model data.
+    Args:
+        model_rsm_path (str): Path to the folder containing .npy files.
+        timepoints (np.ndarray): Array of time points.
+        times (list): List of tuples representing time periods.
+        task (str): Task type ("cls" or "grasp").
+        name_suffix (str): Suffix for the output file name.
+    """
     mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
     corrs = []
@@ -167,9 +178,16 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     width = 0.15
     plt.figure()
     bars = []
+    n = 325
     for i in range(5):   
         vals = corrs[:, i, 0]
-        bar = plt.bar(ind + width*i, vals, width, color = (0.2, 0.4, 0.2, 1- 0.1*i) ) 
+        # confidence_intervals = [confidence_interval(r, n) for r in corrs[:, i, 0]]
+        # print(confidence_intervals)
+        # # Extract lower and upper bounds
+        # lower_bounds = [ci[0] for ci in confidence_intervals]
+        # upper_bounds = [ci[1] for ci in confidence_intervals]
+        
+        bar = plt.bar(ind + width*i, vals,  width, color = (0.2, 0.4, 0.2, 1- 0.1*i)) 
         bars.append(bar)
         for j, rect in enumerate(bar):
             height = rect.get_height()
@@ -179,17 +197,19 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     plt.xticks(ind+width,ticks) 
     plt.legend(bars, ('1st Layer', '2nd Layer', '3rd Layer', '4th Layer', '5th Layer') ) 
     if task == "class" or task == "cls":
-        plt.title(f"Correlation of EEG RSM with Model RSMs: Recognition Task - p{name_suffix}")
+        plt.title(f"Correlation of EEG RSM with Model RSMs: \n Recognition Task - {name_suffix}")
     else:
-        plt.title(f"Correlation of EEG RSM with Model RSMs: Grasp Task - p{name_suffix}")
+        plt.title(f"Correlation of EEG RSM with Model RSMs:\n Grasp Task - {name_suffix}")
     plt.xlabel("Time Periods (ms from beginning of stimulus)")
     plt.ylabel("Correlation")
+    ax = plt.gca()
+    ax.set_ylim([-0.2, 0.5])
     plt.axhline(y=0, color='black', linestyle='-')
     plt.figtext(0.1, 0.01, "*: p-value < 0.05", ha="center", fontsize=10)
     plt.savefig("vis/rsm_correlation/%s_%s" % (task, name_suffix))
 suffix = sys.argv[1]
 task = sys.argv[2]
-single = sys.argv[3]
+model_path = sys.argv[3]
 for task in [task]:
     #change these as necessary
     desire_times = [(-50, 0), (0, 75), (75, 125),(125, 175),(175, 225),(225,300), (300, 375)]  
@@ -199,8 +219,5 @@ for task in [task]:
     timepoints = np.loadtxt(tp_file, delimiter=',') 
     #convert desired timepoints into actual time points
     times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
-    if single == "True":      
-        model_rsm_folder_path = f'saved_model_rsms/{task}/'
-    else:
-        model_rsm_folder_path = f'saved_model_rsms/'
+    model_rsm_folder_path = f'saved_model_rsms/{model_path}'
     comparative_analysis(model_rsm_folder_path, timepoints, times, task, name_suffix=suffix)
