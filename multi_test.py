@@ -32,6 +32,10 @@ from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from training.single_task.evaluation import get_cls_acc, get_grasp_acc, visualize_grasp, visualize_cls
 
 params = Params()
+SEED=42
+
+torch.manual_seed(SEED)
+torch.cuda.manual_seed(SEED)
 
 model_name = params.MODEL_NAME
 weights_dir = params.MODEL_PATH
