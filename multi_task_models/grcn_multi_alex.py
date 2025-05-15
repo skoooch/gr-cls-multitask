@@ -125,7 +125,7 @@ class Multi_AlexnetMap_v3(nn.Module):
             if isinstance(m, (nn.ConvTranspose2d)):
                 nn.init.xavier_uniform_(m.weight, gain=1)
 
-    def forward(self, x, is_grasp=True, shap_mask=[], activations=[]):
+    def forward(self, x, is_grasp=True, shap_mask=[], activations=[], dissociate=[]):
         rgb = x[:, :3, :, :]
         d = torch.unsqueeze(x[:, 3, :, :], dim=1)
         d = torch.cat((d, d, d), dim=1)
@@ -144,6 +144,10 @@ class Multi_AlexnetMap_v3(nn.Module):
         # else:
         # ---------------------------------------------------------------------------------
         rgb = self.rgb_features[0](rgb)
+        if dissociate != []:
+            mask_idx = torch.zeros(rgb.shape[1], dtype=torch.bool).to(x.device)
+            mask_idx[dissociate[0]] = True
+            rgb[:,mask_idx,:,:] = 0
         rgb = self.rgb_features[1](rgb)
         rgb = self.rgb_features[2](rgb)
         d = self.d_features(d)
@@ -157,6 +161,17 @@ class Multi_AlexnetMap_v3(nn.Module):
             # Set rgb_conv_out where shap_mask is True
             features_conv_out[:, shap_mask_idx, :, :] = broadcasted_activations[:, shap_mask_idx, :, :]
             x = self.features[11:](features_conv_out)
+        elif dissociate != []:
+            prev = 0
+            for index, i in enumerate([1,5,8,11]):
+                index +=1
+                features_conv_out = self.features[prev:i](x)
+                prev = i
+                mask_idx = torch.zeros(features_conv_out.shape[1], dtype=torch.bool).to(x.device)
+                mask_idx[dissociate[index]] = True
+                features_conv_out[:,mask_idx,:,:] = 0
+                x = features_conv_out
+            x = self.features[11:](x)
         else:
             for i in range(len(self.features)):
                 x = self.features[i](x)
