@@ -16,7 +16,7 @@ def generate_video(img):
         os.remove(file_name)
 output_dir = '/scratch/expires-2024-Dec-14/'
 os.makedirs(output_dir, exist_ok=True)
-filename = f'rect_data_angledtest.hdf5'
+filename = f'rect_data_angled.hdf5'
 filepath = os.path.join(output_dir, filename)
 h5_file = h5py.File(filepath, 'r')
 
