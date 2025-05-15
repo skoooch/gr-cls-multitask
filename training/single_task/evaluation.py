@@ -23,7 +23,7 @@ from utils.grasp_utils import get_correct_grasp_preds, grasps_to_bboxes, box_iou
 
 params = Params()
 
-def get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None, device=params.DEVICE, shap_mask=[], activations=[]):
+def get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None, device=params.DEVICE, shap_mask=[], activations=[], dissociate=[]):
     """Returns the test accuracy and loss of a CLS model."""
     loss = 0
     correct = 0
@@ -36,7 +36,7 @@ def get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, 
             if len(shap_mask):
                 output = model(img, is_grasp=False, shap_mask=shap_mask, activations=activations)
             else:
-                output = model(img, is_grasp=False)
+                output = model(img, is_grasp=False,dissociate=dissociate)
             batch_correct, batch_total = get_correct_cls_preds_from_map(output, label)
             correct += batch_correct
             total += batch_total
@@ -53,7 +53,7 @@ def get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, 
     return accuracy, round(loss / total, 3)
 
 
-def get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None, device=params.DEVICE, shap_mask=[], activations=[]):
+def get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None, device=params.DEVICE, shap_mask=[], activations=[],dissociate=[]):
     """Returns the test accuracy and loss of a Grasp model."""
     loss = 0
     correct = 0
@@ -66,7 +66,7 @@ def get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH
             if len(shap_mask):
                 output = model(img, is_grasp=True, shap_mask=shap_mask, activations=activations)
             else:
-                output = model(img, is_grasp=True)
+                output = model(img, is_grasp=True,dissociate=dissociate)
             # Move grasp channel to the end
             output = torch.moveaxis(output, 1, -1)
             # Denoramlize grasps
