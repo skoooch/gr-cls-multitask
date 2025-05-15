@@ -47,15 +47,27 @@ model.eval()
 path = params.TEST_PATH
 if len(sys.argv) > 1:
     path = params.TEST_PATH_SHUFFLE
-top = torch.tensor(np.load("sort_shap_indices_diff_normalized.npy"), dtype=int)
+    
+    
+###-------- Change these values for different layer and anaysis -----------
+diff = True
+layer = 1
+### ------------------------------
+
+if diff: top = torch.tensor(np.load("sort_shap_indices_diff_normalized.npy"), dtype=int)
+else: top = torch.tensor(np.load("sort_shap_indices.npy"), dtype=int)
+
 print(top.shape)
 print(top[0, :, 0])
 data_length = 64
+
+
 data = np.zeros((data_length, 2, 2), np.float16)
 for lesion_i in range(data_length):
     for i in range(2):
         dissociate = top[:,:lesion_i,i]
-        dissociate[:4, :] = 0
+        dissociate[:layer, :] = 0
+        dissociate[layer + 1:, :] = 0
         # Get test acc for CLS model
         c_accuracy, c_loss = get_cls_acc(model, include_depth=True, seed=None, dataset=path, truncation=None, dissociate=dissociate)
         # Get test acc for Grasp model
@@ -66,22 +78,20 @@ for lesion_i in range(data_length):
 
 # Plot the data array as two separate plots
 x = range(data.shape[0])
-
-
-
-
 # Third plot: Combined plot with all data
 plt.figure(figsize=(10, 8))
 plt.plot(x, data[:, 0, 0], label='Classification Accuracy (CLS Kernels)', linestyle='--', color = "coral")
 plt.plot(x, data[:, 0, 1], label='Grasp Accuracy (CLS Kernels)', linestyle='-', color = "turquoise")
 plt.plot(x, data[:, 1, 0], label='Classification Accuracy (Grasp Kernels)', linestyle='-', color = "coral")
 plt.plot(x, data[:, 1, 1], label='Grasp Accuracy (Grasp Kernels)', linestyle='--', color = "turquoise")
-plt.title('Combined Accuracy for Lesioning CLS and Grasp Kernels')
-plt.xlabel('Lesion Index (Difference in Shapley Score [Normalized])')
+plt.title(f'Combined Accuracy for Lesioning CLS and Grasp Kernels in Conv Layer {layer + 1}')
+if diff: plt.xlabel('Lesion Index (Difference in Shapley Score [Normalized])') 
+else: plt.xlabel('Lesion Index') 
 plt.ylabel('Accuracy')
 plt.legend()
 plt.tight_layout()
-plt.savefig('vis/lesion/combined_lesion_accuracy_diff_normalized.png')
+if diff: plt.savefig(f'vis/lesion/combined_lesion_accuracy_diff_normalized_layer_{layer}.png')
+else: plt.savefig(f'vis/lesion/combined_lesion_accuracy_layer_{layer}.png')
 plt.close()
 # ...existing code...    
 # Visualize CLS predictions one by one
