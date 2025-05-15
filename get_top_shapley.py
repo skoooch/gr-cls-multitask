@@ -308,7 +308,7 @@ if __name__ == '__main__':
         os.mkdir(os.path.join('vis', DIR))
     top_k = 64
     model_name = params.MODEL_NAME
-    final = np.zeros((5, top_k, 2), np.int16)
+    final = np.zeros((5, top_k, 2))
     for i, layer in enumerate(LAYERS):
         results_dict = {}
         players = []
@@ -338,16 +338,16 @@ if __name__ == '__main__':
             # Extract the values for both tasks
         vals_task_1 = vals[task_1]
         vals_task_2 = vals[task_2]
-        vals_task_1_array = normalize(np.array(vals_task_1)[:,np.newaxis], axis=0).ravel()
-        vals_task_2_array = normalize(np.array(vals_task_2)[:,np.newaxis], axis=0).ravel()
-        vals_task_1 = vals_task_1_array - vals_task_2_array
-        vals_task_2 = vals_task_2_array - vals_task_1_array
+        # vals_task_1_array = normalize(np.array(vals_task_1)[:,np.newaxis], axis=0).ravel()
+        # vals_task_2_array = normalize(np.array(vals_task_2)[:,np.newaxis], axis=0).ravel()
+        # vals_task_1 = vals_task_1_array - vals_task_2_array
+        # vals_task_2 = vals_task_2_array - vals_task_1_array
         if i == 1: top_k=32
-        ind_task_1 = np.argpartition(vals_task_1, -top_k)[-top_k:]
-        ind_task_2 = np.argpartition(vals_task_2, -top_k)[-top_k:]
-        ind_task_1 = np.flip(ind_task_1[np.argsort(vals_task_1[ind_task_1])])
-        ind_task_2 = np.flip(ind_task_2[np.argsort(vals_task_2[ind_task_2])])
-        final[i,:len(ind_task_1),0] = ind_task_1
-        final[i,:len(ind_task_2),1] = ind_task_2
+        # ind_task_1 = np.argpartition(vals_task_1, -top_k)[-top_k:]
+        # ind_task_2 = np.argpartition(vals_task_2, -top_k)[-top_k:]
+        # ind_task_1 = np.flip(ind_task_1[np.argsort(vals_task_1[ind_task_1])])
+        # ind_task_2 = np.flip(ind_task_2[np.argsort(vals_task_2[ind_task_2])])
+        final[i,:len(vals_task_1),0] = vals_task_1
+        final[i,:len(vals_task_2),1] = vals_task_2
         top_k = 64
-    np.save(f'sort_shap_indices_diff_normalized.npy', final)
+    np.save(f'shap_values.npy', final)
