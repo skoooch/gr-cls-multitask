@@ -15,6 +15,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 import networkx as nx
+from scipy.stats import pearsonr, spearmanr
 from torchvision.models import alexnet
 from tqdm import tqdm
 import sys
@@ -65,10 +66,10 @@ def get_activations(input_tensor, layers):
     for i, layer in enumerate(model.features):
         out = layer(out)
         if f'features.{i}' in dict(layers):
-            if i == 0: activations.append(torch.nn.functional.max_pool2d(out, 2, 2).clone().detach())
-            else: activations.append(out.clone().detach())
+            if i == 0: activations.append(F.relu(F.max_pool2d(out, 3, 2), inplace=True).clone().detach())
+            else: activations.append(F.relu(out, inplace=True).clone().detach())
             idx += 1  
-    return [torch.nn.functional.max_pool2d(x_rgb, 2, 2)] + activations
+    return [F.relu(F.max_pool2d(x_rgb, 3, 2), inplace=True)] + activations
 
 # Compute cosine similarity between two feature maps
 def compute_kernel_similarity(kernel_Y, fmap_X):
@@ -76,9 +77,8 @@ def compute_kernel_similarity(kernel_Y, fmap_X):
     return out
 
 # Main function to compute kernel connectivity graph
-def build_connectivity_graph(model, input_tensor):
+def build_connectivity_graph(graph, model, input_tensor, weights=False):
     activations = get_activations(input_tensor, layers)
-    graph = nx.DiGraph()
     for layer_idx in range(len(layers) - 1):
         name_X, layer_X = layers[layer_idx]
         name_Y, layer_Y = layers[layer_idx + 1]
@@ -88,7 +88,11 @@ def build_connectivity_graph(model, input_tensor):
         
         Cx = fmap_X.shape[1]
         Cy = fmap_Y.shape[1]
-        magnitudes = torch.nn.functional.normalize(torch.norm(fmap_Y, dim=(2,3)))
+        magnitudes_X = F.normalize(torch.norm(fmap_X, dim=(2,3)))
+        magnitudes_Y = F.normalize(torch.norm(fmap_Y, dim=(2,3)))
+        normalized_weights = torch.mean(layer_Y.weight.data.clone(),dim=(2,3))
+        normalized_weights -= normalized_weights.min(1, keepdim=True)[0]
+        normalized_weights /= normalized_weights.max(1, keepdim=True)[0]
         for i in range(Cx):
             fmap_Xi = fmap_X[:, i:i+1]  # shape: [1, 1, H, W]
             for j in range(Cy):
@@ -96,20 +100,51 @@ def build_connectivity_graph(model, input_tensor):
                 kernel_Y_j = nn.Conv2d(1, 1, kernel_size=layer_Y.kernel_size, padding=layer_Y.padding).to(device)
                 kernel_Y_j.weight.data = layer_Y.weight.data[j:j+1, i:i+1].clone()
                 kernel_Y_j.bias.data.zero_()
-
-                response = compute_kernel_similarity(kernel_Y_j, fmap_Xi)  # shape: [1, 1, H, W]
+                response = F.relu(compute_kernel_similarity(kernel_Y_j, fmap_Xi), inplace=True)  # shape: [1, 1, H, W]
                 target = fmap_Y[:, j:j+1]
-
                 sim = F.cosine_similarity(response.flatten(), target.flatten(), dim=0).item()
-                
-                weight = sim * magnitudes[:, j:j+1].item()
-
+                if not weights: weight = sim # * (torch.sum(response)/torch.sum(target)) #(magnitudes_Y[:, j:j+1].item()) * 
+                else: 
+                    neuron_weight = normalized_weights[j:j+1, i:i+1].clone()
+                    weight = sim * neuron_weight.detach().to('cpu')[0][0].item()
                 src = f"{name_X}_k{i}"
                 tgt = f"{name_Y}_k{j}"
                 graph.add_edge(src, tgt, weight=weight)
 
     return graph
-
+def edit_connectivity_graph(graph, model, input_tensor, n, weights = False):
+    activations = get_activations(input_tensor, layers)
+    for layer_idx in range(len(layers) - 1):
+        name_X, layer_X = layers[layer_idx]
+        name_Y, layer_Y = layers[layer_idx + 1]
+        
+        fmap_X = activations[layer_idx]  # Shape: [1, Cx, H, W]
+        fmap_Y = activations[layer_idx + 1]  # Shape: [1, Cy, H, W]
+        
+        Cx = fmap_X.shape[1]
+        Cy = fmap_Y.shape[1]
+        magnitudes_X = F.normalize(torch.norm(fmap_X, dim=(2,3)))
+        magnitudes_Y = F.normalize(torch.norm(fmap_Y, dim=(2,3)))
+        normalized_weights = torch.mean(layer_Y.weight.data.clone(),dim=(2,3))
+        normalized_weights -= normalized_weights.min(1, keepdim=True)[0]
+        normalized_weights /= normalized_weights.max(1, keepdim=True)[0]
+        for i in range(Cx):
+            fmap_Xi = fmap_X[:, i:i+1]  # shape: [1, 1, H, W]
+            for j in range(Cy):
+                # Convolve fmap_Xi with kernel j from layer_Y
+                kernel_Y_j = nn.Conv2d(1, 1, kernel_size=layer_Y.kernel_size, padding=layer_Y.padding).to(device)
+                kernel_Y_j.weight.data = layer_Y.weight.data[j:j+1, i:i+1].clone()
+                kernel_Y_j.bias.data.zero_()
+                response = F.relu(compute_kernel_similarity(kernel_Y_j, fmap_Xi), inplace=True)  # shape: [1, 1, H, W]
+                target = fmap_Y[:, j:j+1]
+                sim = F.cosine_similarity(response.flatten(), target.flatten(), dim=0).item()
+                if not weights: weight = sim # * (torch.sum(response)/torch.sum(target)) #(magnitudes_Y[:, j:j+1].item()) * 
+                else: 
+                    neuron_weight = normalized_weights[j:j+1, i:i+1].clone()
+                    weight = sim * neuron_weight.detach().to('cpu')[0][0].item()
+                src = f"{name_X}_k{i}"
+                tgt = f"{name_Y}_k{j}"
+                graph[src][tgt]['weight'] = graph[src][tgt]['weight']*(n-1)/n + weight/n
 # data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
 # for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
 #     if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
@@ -122,26 +157,15 @@ def build_connectivity_graph(model, input_tensor):
 # Build the graph
 graphs = []
 data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
+graph = nx.DiGraph()
 with tqdm(total=400, dynamic_ncols=True, file=sys.stdout) as pbar:
     for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
-        graphs.append(build_connectivity_graph(model, img))
+        if i == 0: build_connectivity_graph(graph, model, img)
+        else: edit_connectivity_graph(graph, model, img, i)
         pbar.update(1)
-
-# Example: print top 5 strongest edges
-graph = nx.DiGraph()
-Cs = [64,32,64,64,64]
-for layer_idx in range(len(layers) - 1):
-        name_X, layer_X = layers[layer_idx]
-        name_Y, layer_Y = layers[layer_idx + 1]
-        for i in range(Cs[layer_idx]):
-            for j in range(Cs[layer_idx + 1]):
-                src = f"{name_X}_k{i}"
-                tgt = f"{name_Y}_k{j}"
-                sum = 0
-                for i, temp_graph in enumerate(graphs):
-                    sum += temp_graph[src][tgt]['weight']
-                graph.add_edge(src, tgt, weight=sum/(i + 1))
+        # if i == 10:
+        #     break
 edges = sorted(graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
 for src, tgt, data in edges[:20]:
     print(f"{src} → {tgt}, weight = {data['weight']:.4f}")
-pickle.dump(graph, open('balls.pickle', 'wb'))
+pickle.dump(graph, open('sim_weight_unnormalized.pickle', 'wb'))
