@@ -33,7 +33,7 @@ def get_refined_graphs(graph_list, add_start=False):
             i_c = 0
             i_g = 0
             grasp_flag = False
-            while len(kernels) < 5:
+            while len(kernels) < 6:
                 i = i_c if not grasp_flag else i_g
                 if shap_indices[layer_idx + j, i, int(grasp_flag)] not in kernels:
                     kernels.add(shap_indices[layer_idx + j, i, int(grasp_flag)])
@@ -149,16 +149,16 @@ def pearson_graph_similarity(G1, G2, weight_attr='weight'):
     if np.std(vec1) == 0 or np.std(vec2) == 0:
         return 0.0
 
-    r, _ = pearsonr(vec1, vec2)
-    return r 
+    r, p = pearsonr(vec1, vec2)
+    return r, p 
 def print_edges(G):
     edges = sorted(G.edges(data=True), key=lambda x: -abs(x[2]['weight']))
     for src, tgt, data in edges[:20]:
         print(f"{src} → {tgt}, weight = {data['weight']:.4f}")
 refine_graphs = True
 
-activity_graph = pickle.load(open('sim_weight.pickle', 'rb'))
-shapley_graph = pickle.load(open('shap_graph.pickle', 'rb'))
+activity_graph = pickle.load(open('graphs/just_weights_mean.pickle', 'rb'))
+shapley_graph = pickle.load(open('graphs/shap_graph_fix.pickle', 'rb'))
 dummy_graph = nx.DiGraph()
 edges = sorted(activity_graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
 for src, tgt, data in edges:
@@ -183,6 +183,7 @@ similarity = spectral_similarity(dummy_graph, activity_graph, method='cosine')
 print("Spectral Similarity:", similarity)
 similarity = spectral_similarity(shapley_graph, dummy_graph, method='cosine')
 print("Spectral Similarity:", similarity)
+exit()
 shap_values = np.load("shap_values.npy")
 
 # Normalize shapley values to [0, 1] for each layer and channel separately
@@ -190,7 +191,7 @@ shap_min = shap_values.min(axis=1, keepdims=True)
 shap_max = shap_values.max(axis=1, keepdims=True)
 shap_norm = (shap_values - shap_min) / (shap_max - shap_min + 1e-8)
 
-graph = pickle.load(open('sim_weight.pickle', 'rb'))
+graph = pickle.load(open('graphs/sim_weight.pickle', 'rb'))
 graph = get_refined_graphs([graph], add_start=True)[0]
 fig = matplotlib.pyplot.figure()
 ax = fig.add_subplot()
