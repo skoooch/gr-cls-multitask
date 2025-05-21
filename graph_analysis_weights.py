@@ -102,4 +102,4 @@ build_connectivity_graph(graph, model)
 edges = sorted(graph.edges(data=True), key=lambda x: abs(x[2]['weight']))
 for src, tgt, data in edges[:10]:
     print(f"{src} → {tgt}, weight = {data['weight']:.4f}")
-pickle.dump(graph, open('just_weights_mean.pickle', 'wb'))
+pickle.dump(graph, open('graphs/just_weights_mean.pickle', 'wb'))
