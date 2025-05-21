@@ -49,8 +49,10 @@ def get_refined_graphs(graph_list, add_start=False):
                 tgt = f"{name_Y}_k{y}"
                 for i, refined_graph in enumerate(refined_graph_list):
                     try:
-                        refined_graph.add_edge(src, tgt, weight=graph_list[i][src][tgt]["weight"])
-                        
+                        try:
+                            refined_graph.add_edge(src, tgt, weight=graph_list[i][src][tgt]["weight"].cpu())
+                        except:
+                            refined_graph.add_edge(src, tgt, weight=graph_list[i][src][tgt]["weight"])
                         if layer_idx == 0 and add_start:
                             refined_graph.add_edge("0", src, weight=0.5)
                     except: 
@@ -130,10 +132,12 @@ def graph_edge_weight_vector(graph, edge_order=None, default=0.0, weight_attr='w
 
     vector = []
     for u, v in edge_order:
-        if graph.has_edge(u, v):
+        #and (not "features.0" in u)
+        if graph.has_edge(u, v) and (not "rgb" in u) and (not "features.0" in u) :
             w = graph[u][v].get(weight_attr, default)
         else:
             w = default
+        
         vector.append(w)
     return np.array(vector)
 
@@ -148,7 +152,19 @@ def pearson_graph_similarity(G1, G2, weight_attr='weight'):
     # Handle edge case: if all values are constant, correlation is undefined
     if np.std(vec1) == 0 or np.std(vec2) == 0:
         return 0.0
+    print(f"Correlating {len(vec1)} edge weights between the two graphs.")
 
+    # Plot the correlation
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(6, 6))
+    plt.scatter(vec1, vec2, alpha=0.6)
+    plt.xlabel("Graph 1 edge weights")
+    plt.ylabel("Graph 2 edge weights")
+    plt.title("Edge Weight Correlation")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.savefig("edge_weight_correlation.png")
+    plt.close()
     r, p = pearsonr(vec1, vec2)
     return r, p 
 def print_edges(G):
@@ -157,7 +173,7 @@ def print_edges(G):
         print(f"{src} → {tgt}, weight = {data['weight']:.4f}")
 refine_graphs = True
 
-activity_graph = pickle.load(open('graphs/just_weights_mean.pickle', 'rb'))
+activity_graph = pickle.load(open('graphs/sim_weight.pickle', 'rb'))
 shapley_graph = pickle.load(open('graphs/shap_graph_fix.pickle', 'rb'))
 dummy_graph = nx.DiGraph()
 edges = sorted(activity_graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
@@ -169,20 +185,20 @@ if refine_graphs:
 print_edges(activity_graph)
 print("---------------------------------")
 print_edges(shapley_graph)
-print(weighted_graph_similarity_cosine(activity_graph, shapley_graph))
-print(weighted_graph_similarity_cosine(dummy_graph, activity_graph))
-print(weighted_graph_similarity_cosine(dummy_graph, shapley_graph))
+# print(weighted_graph_similarity_cosine(activity_graph, shapley_graph))
+# print(weighted_graph_similarity_cosine(dummy_graph, activity_graph))
+# print(weighted_graph_similarity_cosine(dummy_graph, shapley_graph))
 
 print(pearson_graph_similarity(activity_graph, shapley_graph))
-print(pearson_graph_similarity(dummy_graph, activity_graph))
-print(pearson_graph_similarity(dummy_graph, shapley_graph))
+# print(pearson_graph_similarity(dummy_graph, activity_graph))
+# print(pearson_graph_similarity(dummy_graph, shapley_graph))
 
-similarity = spectral_similarity(activity_graph, shapley_graph, method='cosine')
-print("Spectral Similarity:", similarity)
-similarity = spectral_similarity(dummy_graph, activity_graph, method='cosine')
-print("Spectral Similarity:", similarity)
-similarity = spectral_similarity(shapley_graph, dummy_graph, method='cosine')
-print("Spectral Similarity:", similarity)
+# similarity = spectral_similarity(activity_graph, shapley_graph, method='cosine')
+# print("Spectral Similarity:", similarity)
+# similarity = spectral_similarity(dummy_graph, activity_graph, method='cosine')
+# print("Spectral Similarity:", similarity)
+# similarity = spectral_similarity(shapley_graph, dummy_graph, method='cosine')
+# print("Spectral Similarity:", similarity)
 exit()
 shap_values = np.load("shap_values.npy")
 
