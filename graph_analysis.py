@@ -1,12 +1,3 @@
-
-def get_shapley_graph():
-    
-    return
-
-
-def get_activation_graph():
-    
-    return
 import pickle
 from utils.parameters import Params
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3  
@@ -15,12 +6,11 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 import networkx as nx
-from scipy.stats import pearsonr, spearmanr
-from torchvision.models import alexnet
 from tqdm import tqdm
 import sys
-import copy
 import os
+from graph_analysis_shapley import normalize_edge_weights
+from own_images import load_images_to_arrays
 params = Params()
 SEED=42
 
@@ -137,7 +127,7 @@ def edit_connectivity_graph(graph, model, input_tensor, n, weights = False):
                 kernel_Y_j.bias.data.zero_()
                 response = F.relu(compute_kernel_similarity(kernel_Y_j, fmap_Xi), inplace=True)  # shape: [1, 1, H, W]
                 target = fmap_Y[:, j:j+1]
-                sim = F.cosine_similarity(response.flatten(), target.flatten(), dim=0).item()
+                sim = F.cosine_similarity(response.flatten(), target.flatten(), dim=0).item() * torch.norm(response)
                 if not weights: weight = sim # * (torch.sum(response)/torch.sum(target)) #(magnitudes_Y[:, j:j+1].item()) * 
                 else: 
                     neuron_weight = normalized_weights[j:j+1, i:i+1].clone()
@@ -156,16 +146,28 @@ def edit_connectivity_graph(graph, model, input_tensor, n, weights = False):
 
 # Build the graph
 graphs = []
+our_images = True
+
 data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
 graph = nx.DiGraph()
 with tqdm(total=400, dynamic_ncols=True, file=sys.stdout) as pbar:
-    for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
-        if i == 0: build_connectivity_graph(graph, model, img)
-        else: edit_connectivity_graph(graph, model, img, i)
-        pbar.update(1)
-        # if i == 10:
-        #     break
+    if our_images:
+        images = load_images_to_arrays(depth=True)
+        for i, img in enumerate(images):
+            if i == 0: build_connectivity_graph(graph, model, img)
+            else: edit_connectivity_graph(graph, model, img, i)
+            pbar.update(1)
+            # if i == 10:
+            #     break
+    else:
+        for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
+            if i == 0: build_connectivity_graph(graph, model, img)
+            else: edit_connectivity_graph(graph, model, img, i)
+            pbar.update(1)
+            # if i == 10:
+            #     break
 edges = sorted(graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
-for src, tgt, data in edges[:20]:
-    print(f"{src} → {tgt}, weight = {data['weight']:.4f}")
-pickle.dump(graph, open('sim_weight_unnormalized.pickle', 'wb'))
+normalize_edge_weights(graph)
+# for src, tgt, data in edges[:20]:
+#     print(f"{src} → {tgt}, weight = {data['weight']:.4f}")
+pickle.dump(graph, open('graphs/sim_weight_activity_2.pickle', 'wb'))
