@@ -55,7 +55,6 @@ def get_feature_activations(model, images, labels, layer_i=0, top = None,j=1, to
     for label in labels:
         for act in activations[label]:
             activations_flat.append(torch.flatten(act).cpu().detach().numpy())
-        print(activations_flat[-1].shape)
     act_array = np.asarray(activations_flat)
     return act_array
 

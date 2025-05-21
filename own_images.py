@@ -131,4 +131,3 @@ DEVICE = sys.argv[1]
 MODEL_NAME = params.MODEL_NAME
 MODEL_PATH = params.MODEL_WEIGHT_PATH
 model = get_model(MODEL_PATH, DEVICE)
-get_accuracy(model, images)
