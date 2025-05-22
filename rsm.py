@@ -31,7 +31,7 @@ def get_feature_activations(model, images, labels, layer_i=0, top = None,j=1, to
         layer_i: The layer index to extract features from.
         top: The top indices for the activations.
         j: The index for the activations.
-        top_size: The size of the top activations.
+        top_size: The percentage if.
         is_grasp: Whether the task is a grasping task.
     Returns:
         act_array: The activations as a numpy array.
@@ -156,26 +156,32 @@ model = get_model(MODEL_PATH, DEVICE)
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
 labels = ['A', 'B', 'C', 'D', 'E']
 labels_repeated = np.repeat(labels, 5)
-top_32 = torch.tensor(np.load("shap_arrays/smallest20.npy"), dtype=int).to("cuda")
+selected_kernels = torch.tensor(np.load("shap_arrays/smallest20.npy"), dtype=int).to("cuda")
+rsm_folder = "smallest20"
+
 for is_grasp in range(0, 2):
-    act_array = get_rgb_activations(model, images, labels, top=top_32, is_grasp=is_grasp)
+    act_array = get_rgb_activations(model, images, labels, top=selected_kernels, is_grasp=is_grasp)
     result = squareform(pdist(act_array, metric="correlation"))
     if is_grasp == 0:
-        np.save("saved_model_rsms/class/smallest20/rgb.npy", result)
+        np.save(f"saved_model_rsms/class/{rsm_folder}/rgb.npy", result)
     else:
-        np.save("saved_model_rsms/grasp/smallest20/rgb.npy", result)
+        np.save(f"saved_model_rsms/grasp/{rsm_folder}/rgb.npy", result)
 j = 0
-top_size = 13
 for i in [1, 5, 8, 11]:
     j += 1
     for is_grasp in range(0, 2):
-        act_array = get_feature_activations(model, images, labels, layer_i=i,top=top_32, j=j, top_size=top_size, is_grasp=is_grasp)
+        act_array = get_feature_activations(model, images, labels, layer_i=i,top=selected_kernels, j=j, top_size=selected_kernels.shape[1], is_grasp=is_grasp)
         result = squareform(pdist(act_array, metric="correlation"))
         if is_grasp == 0:
-            np.save("saved_model_rsms/class/smallest20/features_%s.npy" % (i-1), result)
+            np.save(f"saved_model_rsms/class/{rsm_folder}/features_%s.npy" % (i-1), result)
         else:
-            np.save("saved_model_rsms/grasp/smallest20/features_%s.npy" % (i-1), result)
+            np.save(f"saved_model_rsms/grasp/{rsm_folder}/features_%s.npy" % (i-1), result)
+            
 exit() # remove this if you want to do the visualization
+
+
+
+
 num_images_per_label = 5
 
 #-------------- From here down is just for visualization ----------------

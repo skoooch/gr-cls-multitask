@@ -132,21 +132,13 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
         for cat in label_order:
             points_per_object[cat] = 0
             for object_data in data[cat]:
-                # if task == "cls" or task == "grasp":
-                #     for eeg in object_data:
-                #         relevant_signal = eeg[time_period[0]:time_period[1], :]
-                #         activations_flat.append(relevant_signal.flatten())
-                #         points_per_object[cat] += 1
-                # else:
-                    
-                    relevant_signal = object_data[time_period[0]:time_period[1], :]
-                    activations_flat.append(relevant_signal.flatten())
-                    points_per_object[cat] += 1
+                relevant_signal = object_data[time_period[0]:time_period[1], :]
+                activations_flat.append(relevant_signal.flatten())
+                points_per_object[cat] += 1
         act_array = np.asarray(activations_flat)
-        result = squareform(pdist(act_array, metric="correlation"))
-        # Path to the folder containing .npy files
-
-
+        
+        result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
+        
         # List all .npy files in the folder
         model_order = ["rgb.npy", "features_0.npy", "features_4.npy", "features_7.npy", "features_10.npy"]
         npy_files = [f for f in os.listdir(model_rsm_path) if f.endswith('.npy')]
@@ -158,7 +150,7 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
             model_matrix = matrices[file]
             rsm1_flat = result[np.triu_indices(result.shape[0], k=1)]
             rsm2_flat = model_matrix[np.triu_indices(model_matrix.shape[0], k=1)]
-            ## THIS IS WHERE THE CORRELATION IS CALCULATED
+            ## THIS IS WHERE THE CORRELATION between eeg and model IS CALCULATED
             corrs[i].append(pearsonr(rsm1_flat, rsm2_flat))
             
     # Plot for each time period
@@ -186,7 +178,6 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
         # # Extract lower and upper bounds
         # lower_bounds = [ci[0] for ci in confidence_intervals]
         # upper_bounds = [ci[1] for ci in confidence_intervals]
-        
         bar = plt.bar(ind + width*i, vals,  width, color = (0.2, 0.4, 0.2, 1- 0.1*i)) 
         bars.append(bar)
         for j, rect in enumerate(bar):
@@ -207,6 +198,8 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     plt.axhline(y=0, color='black', linestyle='-')
     plt.figtext(0.1, 0.01, "*: p-value < 0.05", ha="center", fontsize=10)
     plt.savefig("vis/rsm_correlation/%s_%s" % (task, name_suffix))
+    
+    
 suffix = sys.argv[1]
 task = sys.argv[2]
 model_path = sys.argv[3]

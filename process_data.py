@@ -43,11 +43,6 @@ def get_data(task, avr=False):
     return all_data
 
 def get_data_matlab(task,num, avr=False):
-    
-    lowcut = 0.2  # Low cutoff frequency (Hz)
-    highcut = 115  # High cutoff frequency (Hz)
-    fs = 512  # Sampling frequency (Hz), adapt this to your actual EEG data sampling rate
-    order = 4  # Filter order (typically between 3-5)
     categories = ['figurine', 'pen', 'chair', 'lamp', 'plant']
     all_data = {}
     dataset = []
