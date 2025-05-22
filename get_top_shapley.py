@@ -350,4 +350,4 @@ if __name__ == '__main__':
         final[i,:len(vals_task_1),0] = vals_task_1
         final[i,:len(vals_task_2),1] = vals_task_2
         top_k = 64
-    np.save(f'shap_values.npy', final)
+    np.save(f'shap_arrays/shap_values.npy', final)
