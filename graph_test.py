@@ -20,7 +20,7 @@ from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 layers = ['rgb_features.0', 'features.0','features.4','features.7','features.10']
 def get_refined_graphs(graph_list, add_start=False, refinedness = 6):
-    shap_indices = np.load("sort_shap_indices.npy")
+    shap_indices = np.load("shap_arrays/sort_shap_indices.npy")
     refined_graph_list = []
     for graph in graph_list:
         refined_graph_list.append(nx.DiGraph())
@@ -174,7 +174,7 @@ def print_edges(G):
         
 def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
     refinedness = 7
-    shap_values = np.load("shap_values.npy")
+    shap_values = np.load("shap_arrays/shap_values.npy")
 
     # Normalize shapley values to [0, 1] for each layer and channel separately
     shap_min = shap_values.min(axis=1, keepdims=True)
@@ -343,7 +343,7 @@ def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
     
     
 def visualize_graph():
-    shap_values = np.load("shap_values.npy")
+    shap_values = np.load("shap_arrays/shap_values.npy")
     
     # Normalize shapley values to [0, 1] for each layer and channel separately
     shap_min = shap_values.min(axis=1, keepdims=True)

@@ -19,3 +19,4 @@ dump
 *runs/
 *.mat
 *goodale/trained_models/*
+!shap_arrays/*

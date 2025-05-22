@@ -54,8 +54,8 @@ diff = True
 layer = 1
 ### ------------------------------
 
-if diff: top = torch.tensor(np.load("sort_shap_indices_diff_normalized.npy"), dtype=int)
-else: top = torch.tensor(np.load("sort_shap_indices.npy"), dtype=int)
+if diff: top = torch.tensor(np.load("shap_arrays/sort_shap_indices_diff_normalized.npy"), dtype=int)
+else: top = torch.tensor(np.load("shap_arrays/sort_shap_indices.npy"), dtype=int)
 
 print(top.shape)
 print(top[0, :, 0])
