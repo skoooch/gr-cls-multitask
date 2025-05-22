@@ -63,7 +63,7 @@ def normalize_edge_weights(graph, attr_name='weight'):
             
 # Main function to compute kernel connectivity graph
 def build_connectivity_graph(graph, model):
-    shap_values = np.load("shap_values.npy")
+    shap_values = np.load("shap_arrays/shap_values.npy")
 
     # Normalize shapley values to [0, 1] for each layer and channel separately
     shap_min = shap_values.min(axis=1, keepdims=True)

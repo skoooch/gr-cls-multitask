@@ -156,7 +156,7 @@ model = get_model(MODEL_PATH, DEVICE)
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
 labels = ['A', 'B', 'C', 'D', 'E']
 labels_repeated = np.repeat(labels, 5)
-top_32 = torch.tensor(np.load("smallest20.npy"), dtype=int).to("cuda")
+top_32 = torch.tensor(np.load("shap_arrays/smallest20.npy"), dtype=int).to("cuda")
 for is_grasp in range(0, 2):
     act_array = get_rgb_activations(model, images, labels, top=top_32, is_grasp=is_grasp)
     result = squareform(pdist(act_array, metric="correlation"))
