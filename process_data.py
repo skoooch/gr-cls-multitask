@@ -77,7 +77,7 @@ def get_data_matlab(task,num, avr=False):
             for j in range(1, len(object_to_average_over_exp)):
                 concat_begin = np.concatenate((concat_begin, object_to_average_over_exp[j]), axis=0)
             summed = concat_begin.sum(axis=0)/len(object_to_average_over_exp)
-            # 20:23 + 56: is all the back
+            # 20:33 + 56: is all the back
             summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
             assert(summed.shape[0] == 307)
             all_data[category].append(summed)
