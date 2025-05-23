@@ -42,7 +42,7 @@ def get_data(task, avr=False):
             all_data[category].append(averaged_trials)
     return all_data
 
-def get_data_matlab(task,num, avr=False):
+def get_data_matlab(task,avr=False):
     categories = ['figurine', 'pen', 'chair', 'lamp', 'plant']
     all_data = {}
     dataset = []
@@ -51,6 +51,7 @@ def get_data_matlab(task,num, avr=False):
         # removed_participants = [2,10,12,13]
     else:
         removed_participants = [1,10,12,13]
+        #removed_participants = [1,2,11,7,3,10,12,13]
     for i in range(1,17):
         if i not in removed_participants:
             mat = scipy.io.loadmat(f'matlab_files/{task}_erps/kirtan_exp_{i}_{task}.mat')
@@ -73,7 +74,8 @@ def get_data_matlab(task,num, avr=False):
                 concat_begin = np.concatenate((concat_begin, object_to_average_over_exp[j]), axis=0)
             summed = concat_begin.sum(axis=0)/len(object_to_average_over_exp)
             # 20:33 + 56: is all the back
-            summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
+            #summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
+            summed = summed[:, 20:33]
             assert(summed.shape[0] == 307)
             all_data[category].append(summed)
     return all_data
