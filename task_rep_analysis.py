@@ -13,16 +13,7 @@ def center_of_mask(mask):
 
     return cx.item(), cy.item()
 
-mask = np.array([[False, False, False, False, False],
-                 [False, True, True, True, False],
-                 [False, True, True, True, False],
-                 [False, False, False, False, False]])
-
-cx, cy = center_of_mask(mask)
-print(f"Center coordinates: ({cx}, {cy})")
-
 if __name__ == "__main__":
-    
     params = Params()
     
     dl = DataLoader(
