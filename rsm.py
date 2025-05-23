@@ -48,16 +48,58 @@ def get_feature_activations(model, images, labels, layer_i=0, top = None,j=1, to
         x = torch.cat((rgb, d), dim=1)
         next = model.features[:layer_i](x)
         if j == 1:
-            activations[label].append(next[:,top[j, :top_size//2,is_grasp],:,:])
+            if top:
+                activations[label].append(next[:,top[j, :top_size//2,is_grasp],:,:])
+            else:
+                activations[label].append(next[:,:,:,:])
         else:
-            activations[label].append(next[:,top[j, :,is_grasp],:,:])
+            if top:
+                activations[label].append(next[:,top[j, :,is_grasp],:,:])
+            else:
+                activations[label].append(next[:,:,:,:])
     activations_flat = []
     for label in labels:
         for act in activations[label]:
             activations_flat.append(torch.flatten(act).cpu().detach().numpy())
     act_array = np.asarray(activations_flat)
     return act_array
-
+def get_head_activations(model, images, labels, layer_i=0, is_grasp=0):
+    """
+    Get feature activations from the model.
+    Args:
+        model: The model to extract activations from.
+        images: The images to process.
+        labels: The labels for the images.
+        layer_i: The layer index to extract features from.
+        top: The top indices for the activations.
+        j: The index for the activations.
+        top_size: The percentage if.
+        is_grasp: Whether the task is a grasping task.
+    Returns:
+        act_array: The activations as a numpy array.
+    """
+    activations = {}
+    labels_repeated = np.repeat(labels, 5)
+    for i, (img, label) in enumerate(zip(images, labels_repeated)):
+        if label not in activations.keys(): activations[label] = []
+        rgb = img[:, :3, :, :]
+        d = torch.unsqueeze(img[:, 3, :, :], dim=1)
+        d = torch.cat((d, d, d), dim=1)
+        rgb = model.rgb_features(rgb)
+        d = model.d_features(d)
+        x = torch.cat((rgb, d), dim=1)
+        x = model.features(x)
+        if is_grasp:
+            next = model.grasp[:layer_i](x)
+        else:
+            next = model.cls[:layer_i](x)
+        activations[label].append(next[:,:,:,:])
+    activations_flat = []
+    for label in labels:
+        for act in activations[label]:
+            activations_flat.append(torch.flatten(act).cpu().detach().numpy())
+    act_array = np.asarray(activations_flat)
+    return act_array
 def get_rgb_activations(model, images, labels, depth=False, top = None, is_grasp=0):
     """
     Get RGB activations from the model.
@@ -78,17 +120,50 @@ def get_rgb_activations(model, images, labels, depth=False, top = None, is_grasp
         if depth:
             d = torch.unsqueeze(img[:, 3, :, :], dim=1)
             d = torch.cat((d, d, d), dim=1)
-            activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,top[0, :,is_grasp],:,:], model.d_features(d)), dim=1)
+            if top:
+                activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,top[0, :,is_grasp],:,:], model.d_features(d)), dim=1)
+            else:
+                activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,:,:,:], model.d_features(d)), dim=1)
             activations[label].append(activation)
         else:
-            activations[label].append(model.rgb_features[0](img[:, :3, :, :])[:,top[0, :,is_grasp],:,:])
+            if top:
+                activations[label].append(model.rgb_features[0](img[:, :3, :, :])[:,top[0, :,is_grasp],:,:])
+            else:
+                print(model.rgb_features[0](img[:, :3, :, :]).shape)
+                activations[label].append(model.rgb_features[0](img[:, :3, :, :])[:,:,:,:])
     activations_flat = []
     for label in labels:
         for act in activations[label]:
             activations_flat.append(np.asarray(torch.flatten(act).cpu()))
     act_array = np.asarray(activations_flat)
     return act_array
-    
+def visualize_rsm(rsm, suffix = "", title = f"Model Activation Representational Dissimilarity Matrix", is_grasp=True):
+    plt.figure(figsize=(8, 6))
+    im = plt.imshow(rsm, cmap='viridis', aspect='auto', vmin=0)
+    num_classes = len(np.unique(labels))
+    mapping = {"A": "Figurine", "B": "Pen", "C": "Chair", "D":"Lamp", "E": "Plant"}
+    label_order = [mapping[c] for c in ["A","B","C","D","E"]]
+    num_images_per_label = rsm.shape[0] // num_classes
+    # Draw lines to separate classes
+    for i in range(1, num_classes):
+        plt.axhline(i * num_images_per_label - 0.5, color='white', linewidth=1)
+        plt.axvline(i * num_images_per_label - 0.5, color='white', linewidth=1)
+    plt.xticks(
+        [i * num_images_per_label + num_images_per_label // 2 for i in range(num_classes)],
+        label_order
+    )
+    plt.yticks(
+        [i * num_images_per_label + num_images_per_label // 2 for i in range(num_classes)],
+        label_order
+    )
+    plt.xlabel("Images")
+    plt.ylabel("Images")
+    cbar = plt.colorbar(im, fraction=0.046, pad=0.04)
+    cbar.set_label('Dissimilarity')
+    plt.title(title)
+    plt.tight_layout()
+    plt.savefig(f"rsm_first.png")
+        
 class MDS:
     """ Classical multidimensional scaling (MDS)
                                                                                                
@@ -156,6 +231,20 @@ model = get_model(MODEL_PATH, DEVICE)
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
 labels = ['A', 'B', 'C', 'D', 'E']
 labels_repeated = np.repeat(labels, 5)
+is_grasp = True
+rgb = get_rgb_activations(model, images, labels)
+# j=0
+# for i in [1, 5, 8, 11]:
+#     j += 1
+#     act_array = get_feature_activations(model, images, labels, layer_i=i, j=j)
+#     rgb = np.concatenate((rgb, act_array), axis = 1)
+# for i in [1, 3,5, 7]:
+#     act_array = get_head_activations(model, images, labels, layer_i=i, is_grasp=is_grasp)
+#     rgb = np.concatenate((rgb, act_array), axis = 1)
+# print(rgb.shape)
+# print(np.load("saved_model_rsms/rgb.npy").shape)
+visualize_rsm(squareform(pdist(rgb, metric="correlation")), title=f"First Layer Representational Dissimilarity Matrix", is_grasp = is_grasp)
+exit()
 selected_kernels = torch.tensor(np.load("shap_arrays/smallest20.npy"), dtype=int).to("cuda")
 rsm_folder = "smallest20"
 
