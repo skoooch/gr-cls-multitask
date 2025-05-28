@@ -107,9 +107,9 @@ def perform_rsm_vis(times, task="cls"):
         plt.savefig('vis/%s/ts%s_correlation_avr.png' % (task, (i+1)))   
         plt.clf()
         
-def visualize_rsm(rsm, suffix = "", title = "Model Activation Representational Dissimilarity Matrix"):
+def visualize_rsm(rsm, suffix = "", title = "Recognition task-Related EEG RDM (175–225 ms) from Posterior Brain Regions"):
     plt.figure(figsize=(8, 6))
-    im = plt.imshow(rsm, cmap='viridis', aspect='auto', vmin=0)
+    im = plt.imshow(rsm, cmap='bwr', aspect='auto', vmin=0, vmax=1)
     num_classes = 5
     mapping = {"A": "Figurine", "B": "Pen", "C": "Chair", "D":"Lamp", "E": "Plant"}
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
@@ -135,11 +135,11 @@ def visualize_rsm(rsm, suffix = "", title = "Model Activation Representational D
     plt.savefig(f"rsm_{suffix}.png")
     
 def visualize_eeg_rsm(task):
-    data = get_data_matlab(task,avr=True)
+    data = get_data_matlab(task,avr=True, left = False)
     mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
     activations_flat = []
-    time_period = (np.where(timepoints == times[4][0])[0][0], np.where(timepoints == times[4][1])[0][0])
+    time_period = (np.where(timepoints == times[3][0])[0][0], np.where(timepoints == times[3][1])[0][0])
     points_per_object = {}
     for cat in label_order:
         points_per_object[cat] = 0
@@ -150,7 +150,7 @@ def visualize_eeg_rsm(task):
     act_array = np.asarray(activations_flat)
     
     result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
-    visualize_rsm(result, f"eeg_single", title = f"{'Grasping' if task == 'grasp' else 'Recognition'} EEG RDM 175ms-225ms (Left Posterior Electrodes)")
+    visualize_rsm(result, f"eeg_single", title = "Recognition task-Related EEG RDM (125–175 ms) from Posterior Brain Regions")
       
 def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suffix="plot"):
     """

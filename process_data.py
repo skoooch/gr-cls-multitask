@@ -42,7 +42,7 @@ def get_data(task, avr=False):
             all_data[category].append(averaged_trials)
     return all_data
 
-def get_data_matlab(task,avr=False):
+def get_data_matlab(task,avr=False, left = False):
     categories = ['figurine', 'pen', 'chair', 'lamp', 'plant']
     all_data = {}
     dataset = []
@@ -74,8 +74,8 @@ def get_data_matlab(task,avr=False):
                 concat_begin = np.concatenate((concat_begin, object_to_average_over_exp[j]), axis=0)
             summed = concat_begin.sum(axis=0)/len(object_to_average_over_exp)
             # 20:33 + 56: is all the back
-            #summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
-            summed = summed[:, 20:33]
+            if not left: summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
+            else: summed = summed[:, 20:33]
             assert(summed.shape[0] == 307)
             all_data[category].append(summed)
     return all_data
