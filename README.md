@@ -9,7 +9,6 @@ Task| Recogniton | Grasping
 --- | --- | --- 
 Train Accuracy (%) | 99.02 | 83.65 
 Test Accuracy (%) | 85.0| 81.5 
-Learning Rate | 301 | 283 
 Epoch | 150 | 150 
 
 Size of divergent heads: 4 layers
