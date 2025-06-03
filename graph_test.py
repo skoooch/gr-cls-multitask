@@ -133,29 +133,32 @@ def graph_edge_weight_vector(graph, edge_order=None, default=0.0, weight_attr='w
     """Returns a vector of edge weights in a consistent order."""
     if edge_order is None:
         edge_order = sorted(graph.edges())
-
     vector = []
     for u, v in edge_order:
         #and (not "features.0" in u)
-        if graph.has_edge(u, v) and (not "rgb" in u) and (not "features.0" in u) :
+        #(not "rgb" in u) and
+        if graph.has_edge(u, v) and "features.7" in v:
             w = graph[u][v].get(weight_attr, default)
+            vector.append(w)
         else:
-            w = default
+            continue
         
-        vector.append(w)
-    return np.array(vector)
+            
+    return np.array(vector), edge_order
 
 def pearson_graph_similarity(G1, G2, weight_attr='weight'):
     """Computes Pearson correlation between the edge weight vectors of two graphs."""
     # Union of all edges from both graphs
-    all_edges = sorted(set(G1.edges()) | set(G2.edges()))
-    
-    vec1 = graph_edge_weight_vector(G1, edge_order=all_edges, weight_attr=weight_attr)
-    vec2 = graph_edge_weight_vector(G2, edge_order=all_edges, weight_attr=weight_attr)
-
+    all_edges = sorted(set(G1.edges()) & set(G2.edges()))
+    print(len(all_edges))
+    vec1, edge_1 = graph_edge_weight_vector(G1, edge_order=all_edges, weight_attr=weight_attr)
+    vec2, edge_2 = graph_edge_weight_vector(G2, edge_order=all_edges, weight_attr=weight_attr)
+    assert(edge_1 == edge_2)
     # Handle edge case: if all values are constant, correlation is undefined
     if np.std(vec1) == 0 or np.std(vec2) == 0:
         return 0.0
+    print(vec1.shape)
+    print(vec2.shape)
     print(f"Correlating {len(vec1)} edge weights between the two graphs.")
 
     # Plot the correlation
@@ -234,9 +237,10 @@ def get_layer_means(graph):
 def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
     refinedness = 10
     shap_values = np.load("shap_arrays/shap_values.npy")
-    diff = True
+    diff = False
     # Normalize shapley values to [0, 1] for each layer and channel separately
     shap_min = shap_values.min(axis=1, keepdims=True)
+    
     shap_max = shap_values.max(axis=1, keepdims=True)
     shap_norm = (shap_values - shap_min) / (shap_max - shap_min + 1e-8)
 
@@ -247,7 +251,8 @@ def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
     normalize_edges_per_layer(graph)
     graph = get_refined_graphs([graph], add_start=True, refinedness=refinedness)[0]
     normalize_edges_per_layer(graph)
-    layer_means = get_layer_means(graph)    
+    layer_means = get_layer_means(graph)
+    print(layer_means)    
     # --- Node typing based on ranking ---
     node_types = {}
     top_k = refinedness  # number of top kernels per layer/channel
@@ -259,6 +264,7 @@ def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
     if not diff:
         for layer_idx, layer in enumerate(layers):
             # Get indices of top_k for class and grasp
+            diffs = shap_norm[layer_idx, :, 0] - shap_norm[layer_idx, :, 1]
             means = np.mean(shap_values[layer_idx, :, :], axis=0)
 
             class_ranks = np.argsort(-shap_values[layer_idx, :, 0])[:top_k]
@@ -277,7 +283,7 @@ def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
             if node == 'image':
                 node_types[node] = 'start'
                 continue
-            if (node in top_class and node in top_grasp) or node in no_preference:
+            if (node in top_class and node in top_grasp) :
                 node_types[node] = 'no_pref'
             elif node in top_class:
                 node_types[node] = 'class'
@@ -292,8 +298,8 @@ def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
             # Separate positive and negative diffs
             pos_diffs = diffs[diffs > 0]
             neg_diffs = diffs[diffs < 0]
-            pos_thresh = np.percentile(pos_diffs, 50) if len(pos_diffs) > 0 else 0
-            neg_thresh = np.percentile(np.abs(neg_diffs), 50) if len(neg_diffs) > 0 else 0
+            pos_thresh = np.percentile(pos_diffs, 80) if len(pos_diffs) > 0 else 0
+            neg_thresh = np.percentile(np.abs(neg_diffs), 80) if len(neg_diffs) > 0 else 0
             for kernel_idx in range(diffs.shape[0]):
                 if kernel_idx == 4:
                     print(diffs[kernel_idx])
@@ -393,7 +399,7 @@ def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
     l_mapping = {"0": 0, "4": 1, "7": 2, "10": 3} 
     for u, v, data in graph.edges(data=True):
         w = abs(data['weight'])
-        if w < (100 if u == "image" else layer_means[0 if "rgb" in u else l_mapping[u.split(".")[1][0]]]):
+        if w < (100 if u == "image" else layer_means[0 if "rgb" in u else l_mapping[u.split(".")[1][0]]]/2):
             continue
         t1 = node_types.get(u, 'no_pref')
         t2 = node_types.get(v, 'no_pref')
@@ -580,12 +586,12 @@ edges = sorted(activity_graph.edges(data=True), key=lambda x: -abs(x[2]['weight'
 for src, tgt, data in edges:
     dummy_graph.add_edge(src, tgt, weight=10)  
 if refine_graphs:
-    activity_graph, shapley_graph, dummy_graph = get_refined_graphs([activity_graph, shapley_graph, dummy_graph], add_start = False) 
+    activity_graph, shapley_graph, dummy_graph = get_refined_graphs([activity_graph, shapley_graph, dummy_graph], add_start = False, refinedness=10) 
 visualize_graph_discrete()
-exit()
-print_edges(activity_graph)
-print("---------------------------------")
-print_edges(shapley_graph)
+# exit()
+# print_edges(activity_graph)
+# print("---------------------------------")
+# print_edges(shapley_graph)
 # print(weighted_graph_similarity_cosine(activity_graph, shapley_graph))
 # print(weighted_graph_similarity_cosine(dummy_graph, activity_graph))
 # print(weighted_graph_similarity_cosine(dummy_graph, shapley_graph))

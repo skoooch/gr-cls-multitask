@@ -64,6 +64,8 @@ def get_data_matlab(task,avr=False, left = False):
                 data = file[category][f"ob{i}"][0][0]
                 data = data.transpose(0, 2, 1)
                 num_trials, num_timepoints, num_channels = data.shape
+                if(np.where(data) == 0):
+                    print("here")
                 # Determine the number of new trials after averaging every 4
                 # Initialize the array to hold the averaged data
                 averaged_trials = np.mean(data, axis=0)[None, :, :]
@@ -74,8 +76,9 @@ def get_data_matlab(task,avr=False, left = False):
                 concat_begin = np.concatenate((concat_begin, object_to_average_over_exp[j]), axis=0)
             summed = concat_begin.sum(axis=0)/len(object_to_average_over_exp)
             # 20:33 + 56: is all the back
-            if not left: summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
-            else: summed = summed[:, 20:33]
+            
+            # if not left: summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
+            # else: summed = summed[:, 20:33]
             assert(summed.shape[0] == 307)
             all_data[category].append(summed)
     return all_data
