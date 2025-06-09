@@ -59,57 +59,56 @@ class MDS:
         my_scaler = manifold.MDS(n_jobs=-1, n_components=3)
         return my_scaler.fit_transform(D)
 
-def perform_rsm_vis(times, task="cls"):
-    for i in range(3):
-        data = get_data_matlab(task)
-        labels = data.keys()
-        activations_flat = []
-        timepoints = np.loadtxt('data/timepoints_8_%s.csv' % task, delimiter=',') 
+def perform_rsm_vis(times, time_region=0,task="class"):
+    data = get_data_matlab(task,avr=True, left = False)
+    labels = data.keys()
+    mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}
+    label_order = [mapping[c] for c in ["A","B","C","D","E"]]
+    activations_flat = []
+    time_period = (np.where(timepoints == times[time_region][0])[0][0], np.where(timepoints == times[time_region][1])[0][0])
+    points_per_object = {}
+    for cat in label_order:
+        points_per_object[cat] = 0
+        for object_data in data[cat]:
+            relevant_signal = object_data[time_period[0]:time_period[1], :]
+            activations_flat.append(relevant_signal.flatten())
+            points_per_object[cat] += 1
+    act_array = np.asarray(activations_flat)
+    
+    result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
+    embedding = MDS.two_mds(result) 
+    total_objects_sofar = 0
+    embedding_categorized = {}
+    for cat in labels:
+        embedding_categorized[cat] = embedding[total_objects_sofar:total_objects_sofar + points_per_object[cat]]
+        total_objects_sofar += points_per_object[cat]
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    for cat in labels:
+        ax.scatter(embedding_categorized[cat][:, 0],
+                    embedding_categorized[cat][:, 1],
+                    label=cat)
+    ax.legend()
+    plt.title("%sms to %sms %s (correlation)" % (times[time_region][0], times[time_region][1], task))
+    plt.savefig('vis/%s/ts%s_correlation.png' % (task,(time_region+1)))   
+    plt.clf()
+    
+    fig = plt.figure()
+    ax = fig.add_subplot()
+    for cat in labels:
+        avr_x = np.mean(embedding_categorized[cat][:, 0])
+        avr_y = np.mean(embedding_categorized[cat][:, 1])
+        ax.scatter(avr_x,
+                    avr_y,
+                    label=[cat])
+    ax.legend()
+    plt.title("%sms to %sms Averaged %s (correlation)" % (times[time_region][0], times[time_region][1], task))
+    plt.savefig('vis/%s/ts%s_correlation_avr.png' % (task, (time_region+1)))   
+    plt.clf()
         
-        time_period = (np.where(timepoints == times[i][0])[0][0], np.where(timepoints == times[i][1])[0][0])
-        points_per_object = {}
-        for cat in labels:
-            points_per_object[cat] = 0
-            for object_data in data[cat]:
-                for eeg in object_data:
-                    relevant_signal = eeg[time_period[0]:time_period[1], :]
-                    activations_flat.append(relevant_signal.flatten())
-                    points_per_object[cat] += 1
-        act_array = np.asarray(activations_flat)
-        result = squareform(pdist(act_array, metric="correlation"))
-        embedding = MDS.two_mds(result) 
-        total_objects_sofar = 0
-        embedding_categorized = {}
-        for cat in labels:
-            embedding_categorized[cat] = embedding[total_objects_sofar:total_objects_sofar + points_per_object[cat]]
-            total_objects_sofar += points_per_object[cat]
-        fig = plt.figure()
-        ax = fig.add_subplot()
-        for cat in labels:
-            ax.scatter(embedding_categorized[cat][:, 0],
-                        embedding_categorized[cat][:, 1],
-                        label=cat)
-        ax.legend()
-        plt.title("%sms to %sms grasp (correlation)" % (times[i][0], times[i][1]))
-        plt.savefig('vis/%s/ts%s_correlation.png' % (task,(i+1)))   
-        plt.clf()
-        
-        fig = plt.figure()
-        ax = fig.add_subplot()
-        for cat in labels:
-            avr_x = np.mean(embedding_categorized[cat][:, 0])
-            avr_y = np.mean(embedding_categorized[cat][:, 1])
-            ax.scatter(avr_x,
-                        avr_y,
-                        label=[cat])
-        ax.legend()
-        plt.title("%sms to %sms Averaged grasp (correlation)" % (times[i][0], times[i][1]))
-        plt.savefig('vis/%s/ts%s_correlation_avr.png' % (task, (i+1)))   
-        plt.clf()
-        
-def visualize_rsm(rsm, suffix = "", title = "Model Activation Representational Dissimilarity Matrix"):
+def visualize_rsm(rsm, suffix = "", title = "Recognition task-Related EEG RDM (175–225 ms) from Posterior Brain Regions"):
     plt.figure(figsize=(8, 6))
-    im = plt.imshow(rsm, cmap='viridis', aspect='auto', vmin=0)
+    im = plt.imshow(rsm, cmap='bwr', aspect='auto', vmin=0, vmax=1)
     num_classes = 5
     mapping = {"A": "Figurine", "B": "Pen", "C": "Chair", "D":"Lamp", "E": "Plant"}
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
@@ -133,13 +132,45 @@ def visualize_rsm(rsm, suffix = "", title = "Model Activation Representational D
     plt.title(title)
     plt.tight_layout()
     plt.savefig(f"rsm_{suffix}.png")
-    
+def time_eeg_rsm(task):
+    time_bin = 5
+    data = get_data_matlab(task, avr=True, left=False)
+    data = np.array(list(data.values()))
+    activations_flat = []
+    zero_idx = np.where(timepoints == times[0][1])[0][0]
+    end_idx = np.where(timepoints == times[6][1])[0][0]
+    i = zero_idx
+    averaged_data = np.mean(data, axis=(0, 1,))
+    print(averaged_data.shape)
+    print(end_idx)
+    while i + time_bin < end_idx:
+        activations_flat.append(averaged_data[i:i+time_bin].flatten())
+        i += time_bin
+    act_array = np.asarray(activations_flat)
+    print(act_array.shape)
+    rsm = squareform(pdist(act_array, metric="correlation"))  # EEG RSM is calculated here!!
+    plt.figure(figsize=(8, 6))
+    im = plt.imshow(rsm, cmap='bwr', aspect='auto', vmin=0, vmax=1)
+    plt.xlabel("Time from Stimulus Onset (ms)")
+    plt.ylabel("Time from Stimulus Onset (ms)")
+    # Set x and y axis ticks to a subset of ms given by timepoints (5-10 evenly spaced)
+    num_ticks = min(10, act_array.shape[0])
+    tick_indices = np.linspace(0, act_array.shape[0] - 1, num=num_ticks, dtype=int)
+    ms_ticks = [int(timepoints[zero_idx + i * time_bin]) for i in tick_indices]
+    plt.xticks(ticks=tick_indices, labels=ms_ticks)
+    plt.yticks(ticks=tick_indices, labels=ms_ticks)  
+    plt.gca().invert_yaxis()  # Reverse the y-axis direction
+    plt.title(f"RDM for EEG data across time - {'Recognition' if task == 'class' else 'Grasping'} Task - All Electrodes")
+    cbar = plt.colorbar(im, fraction=0.046, pad=0.04)
+    cbar.set_label('Dissimilarity')
+    plt.tight_layout()
+    plt.savefig(f"rsm_{suffix}_full.png")
 def visualize_eeg_rsm(task):
-    data = get_data_matlab(task,avr=True)
+    data = get_data_matlab(task,avr=True, left = False)
     mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
     activations_flat = []
-    time_period = (np.where(timepoints == times[4][0])[0][0], np.where(timepoints == times[4][1])[0][0])
+    time_period = (np.where(timepoints == times[3][0])[0][0], np.where(timepoints == times[3][1])[0][0])
     points_per_object = {}
     for cat in label_order:
         points_per_object[cat] = 0
@@ -150,7 +181,7 @@ def visualize_eeg_rsm(task):
     act_array = np.asarray(activations_flat)
     
     result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
-    visualize_rsm(result, f"eeg_single", title = f"{'Grasping' if task == 'grasp' else 'Recognition'} EEG RDM 175ms-225ms (Left Posterior Electrodes)")
+    visualize_rsm(result, f"eeg_single", title = "Recognition task-Related EEG RDM (125–175 ms) from Posterior Brain Regions")
       
 def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suffix="plot"):
     """
@@ -244,20 +275,22 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     plt.savefig("vis/rsm_correlation/%s_%s" % (task, name_suffix))
 suffix = sys.argv[1]
 task = sys.argv[2]
-desire_times = [(-50, 0), (0, 75), (75, 125),(125, 175),(175, 225),(225,300), (300, 375)]  
+desire_times = [(-50, 0), (0, 75), (75, 125),(125, 175),(175, 225),(225,300), (300, 400)]  
 #desire_times = [(0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 300)]  
 #timepoints are identical across the files so this can stay the same
 tp_file = 'data/timepoints_8_cls.csv'
 timepoints = np.loadtxt(tp_file, delimiter=',')
 times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
-visualize_eeg_rsm(task)
-exit()
+# time_eeg_rsm(task)
+# exit()
 
-model_path = sys.argv[3]
-
-for task in [task]:
+try: 
+    model_path = sys.argv[3]
+except:
+    model_path = ""
+for task in ["grasp", "class"]:
     #change these as necessary
-    desire_times = [(-50, 0), (0, 75), (75, 125),(125, 175),(175, 225),(225,300), (300, 375)]  
+    desire_times = [(-50, 0), (0, 75), (75, 125),(125, 175),(175, 225),(225,300), (300, 450)]  
     #desire_times = [(0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 300)]  
     #timepoints are identical across the files so this can stay the same
     tp_file = 'data/timepoints_8_cls.csv'
@@ -265,4 +298,5 @@ for task in [task]:
     #convert desired timepoints into actual time points
     times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
     model_rsm_folder_path = f'saved_model_rsms/{model_path}'
-    comparative_analysis(model_rsm_folder_path, timepoints, times, task, name_suffix=suffix)
+    perform_rsm_vis(times, task=task, time_region=3)
+    #comparative_analysis(model_rsm_folder_path, timepoints, times, task, name_suffix=suffix)
