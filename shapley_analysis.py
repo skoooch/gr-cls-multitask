@@ -372,11 +372,11 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
         inset_width = 0.12
         inset_height = 0.18
         left = 0.13 + i * (0.83 / len(scatter_data))  # even horizontal spacing
-        bottom = 0.035
+        bottom = 0.05
 
         inset_ax = fig.add_axes([left, bottom, inset_width, inset_height])
         inset_ax.scatter(x, y, alpha=0.7)
-        inset_ax.set_title(f'{layer}\nr = {r:.2f}', fontsize=8)
+        inset_ax.set_title(f'r = {r:.2f}', fontsize=8)
         inset_ax.set_xlabel(f'{task_1}', fontsize=6, labelpad=1)
         inset_ax.set_ylabel(f'{task_2}', fontsize=6, labelpad=1)
         inset_ax.tick_params(axis='both', which='major', labelsize=6)
