@@ -17,7 +17,7 @@ params = Params()
 
 def get_model(model_path, device=params.DEVICE):
     model = Multi_AlexnetMap_v3().to(device)
-    model.load_state_dict(torch.load(model_path))
+    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
     model.eval()
     return model
 
@@ -77,7 +77,7 @@ def rgb_to_depth(rgb_image):
     
     return depth_map_normalized.astype(np.uint8)
 
-def load_images_to_arrays(depth=True):
+def load_images_to_arrays(depth=True, device=params.DEVICE):
     image_arrays= []
     depth_path = 'new_data/cleaned'
     rgb_path = 'new_data/RGB'
@@ -98,10 +98,10 @@ def load_images_to_arrays(depth=True):
         with Image.open(rgb_file) as img:
             # Convert the image to a NumPy array and append to the list
             rgb_array = torch.from_numpy(np.transpose(crop_center(np.array(img))))[None, ...] 
-            image_arrays.append((torch.cat((rgb_array, depth_array), dim=1)).to(torch.float).to("cuda") / 255)
+            image_arrays.append((torch.cat((rgb_array, depth_array), dim=1)).to(torch.float).to(device) / 255)
     return image_arrays
 
-def get_accuracy(model, images):
+def get_accuracy(model, images, is_grasp=False, device=params.DEVICE):
     label_order = ["C", "D", "A", "E", "B"]
     labels = ['A', 'B', 'C', 'D', 'E']
     loss = 0
@@ -110,16 +110,12 @@ def get_accuracy(model, images):
     labels_repeated = np.repeat(labels, 5)
     for i, (img, label) in enumerate(zip(images, labels_repeated)):
         
-        img_test = torch.zeros(img.shape, dtype=torch.float).to("cuda")
+        img_test = torch.zeros(img.shape, dtype=torch.float).to(device)
         img_test[0, :3, :, :] = img[0, :3, :, :]
-        # plt.imshow(img_depth)
-        # plt.title("shit")
-        # plt.savefig("shit.png")
-        # exit() tensor([[ 3611.7319, -3644.3909, -3648.8831, -3639.3789, -3656.8604]],
-        label_cls = torch.ones(6, dtype=torch.float32).to("cuda") * -1
+        label_cls = torch.ones(6, dtype=torch.float32).to(device) * -1
         label_cls[label_order.index(label)] = 1.0
         label_cls[5] = 1.0
-        output = model(img_test, is_grasp=False)
+        output = model(img_test, is_grasp=is_grasp)
         batch_correct, batch_total = get_correct_cls_preds_from_map(output,torch.argmax(label_cls))
         correct += batch_correct
         total += batch_total
