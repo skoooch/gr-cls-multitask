@@ -139,7 +139,7 @@ def get_rgb_activations(model, images, labels, depth=False, top = None, is_grasp
     return act_array
 def visualize_rsm(rsm, suffix = "", title = f"Model Activation Representational Dissimilarity Matrix", is_grasp=True):
     plt.figure(figsize=(8, 6))
-    im = plt.imshow(rsm, cmap='viridis', aspect='auto', vmin=0)
+    im = plt.imshow(rsm, cmap='bwr', aspect='auto', vmin=0, vmax=1)
     num_classes = len(np.unique(labels))
     mapping = {"A": "Figurine", "B": "Pen", "C": "Chair", "D":"Lamp", "E": "Plant"}
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
@@ -233,6 +233,7 @@ labels = ['A', 'B', 'C', 'D', 'E']
 labels_repeated = np.repeat(labels, 5)
 is_grasp = True
 rgb = get_rgb_activations(model, images, labels)
+rgb = get_feature_activations(model, images, labels, layer_i=1, j = 1)
 # j=0
 # for i in [1, 5, 8, 11]:
 #     j += 1
@@ -243,7 +244,7 @@ rgb = get_rgb_activations(model, images, labels)
 #     rgb = np.concatenate((rgb, act_array), axis = 1)
 # print(rgb.shape)
 # print(np.load("saved_model_rsms/rgb.npy").shape)
-visualize_rsm(squareform(pdist(rgb, metric="correlation")), title=f"First Layer Representational Dissimilarity Matrix", is_grasp = is_grasp)
+visualize_rsm(squareform(pdist(rgb, metric="correlation")), title=f"Second Convolutional Layer RDM", is_grasp = is_grasp)
 exit()
 selected_kernels = torch.tensor(np.load("shap_arrays/smallest20.npy"), dtype=int).to("cuda")
 rsm_folder = "smallest20"
