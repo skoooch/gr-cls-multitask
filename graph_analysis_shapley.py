@@ -15,8 +15,9 @@ SEED=42
 model_name = params.MODEL_NAME
 weights_dir = params.MODEL_PATH
 weights_path = os.path.join(weights_dir, model_name, model_name + '_final.pth')
-model =  Multi_AlexnetMap_v3().to('cuda')
-model.load_state_dict(torch.load(weights_path))
+model =  Multi_AlexnetMap_v3().to('cpu')
+model.load_state_dict(torch.load(weights_path, map_location=torch.device('cpu')))
+
 model.eval()
 
 # Move to CPU or GPU as needed
