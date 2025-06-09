@@ -199,7 +199,7 @@ def get_cb_bounds(vals, variances, counts):
     7/3 * R * np.log(2 / DELTA) / (counts[counts > 1] - 1)
 
     return cbs
-
+    
 
 def plot_shapley_dist(players, results, model_type, layer):
     """
@@ -222,22 +222,34 @@ def plot_shapley_dist(players, results, model_type, layer):
     counts = np.clip(counts, 1e-12, None)
     print(counts)
     print(sums)
+
     # Expected shapley values of each neuron
     vals = sums / (counts + 1e-12)
     print(vals)
+
     # Variance of shapley values of each neuron
     variances, stds = get_variance_std(sums, vals, squares, counts)
     print(variances)
+
     # Empirical berstein confidence bounds for each neuron
     cbs = get_cb_bounds(vals, variances, counts)
     sorted_vals_idx = np.argsort(vals)[-params.TOP_K:]
     top_k_vals = np.zeros((len(vals)))
     top_k_vals[sorted_vals_idx] = 1
 
+    # Set bar colors
     colors = np.where(top_k_vals == 1, 'coral', 'turquoise')
-    for i in range(len(players)):
-        if top_k_vals[i] == 1:
-            shutil.copy('features/%s/%s.png' % (layer, i), 'features/%s_%s_%s.png' % (layer, model_type, i))
+    if model_type == 'cls':
+        colors = np.where(top_k_vals == 1, 'red', 'lightcoral')
+    elif model_type == 'grasp':
+        colors = np.where(top_k_vals == 1, 'blue', 'lightblue')
+    else: # fallback color
+        colors = np.where(top_k_vals == 1, 'grey', 'lightgrey')
+
+    # for i in range(len(players)):
+    #     if top_k_vals[i] == 1:
+    #         shutil.copy('features/%s/%s.png' % (layer, i), 'features/%s_%s_%s.png' % (layer, model_type, i))
+            
     fig, ax = plt.subplots()
     ax.bar(np.arange(len(vals)), vals, yerr=cbs, align='center', ecolor='lightgrey', color=colors)
     ax.set_xlabel('Kernel Index')
@@ -301,11 +313,83 @@ def plot_shapley_conf_trend(players, results, model_type, layer):
     
     plt.savefig('vis/shap/shapley_confidence_bounds/shapley_confidence_bounds_%s_%s.png' % (model_type, '_'.join(layer.split('.'))))
 
+def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
+    '''
+    plot correlation in neuron shapley values between tasks across layers
+    plot shapley graphs for each layer under the correlation graph
+    '''
+
+    num_layers = len(layers)
+    r_values = []
+    scatter_data = []
+
+    # data for each scatter plot
+    for layer in layers:
+        players = players_dict[layer]
+        results_dict = results_dict_by_layer[layer]
+
+        vals = {}
+        for task in results_dict:
+            squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
+            for result in results_dict[task]:
+                mem_tmc = get_result(result)
+                sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
+                squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
+                counts += np.sum(mem_tmc != -1, 0)
+            counts = np.clip(counts, 1e-12, None)
+            vals[task] = sums / (counts + 1e-12)
+
+        task_1, task_2 = list(vals.keys())
+        x = vals[task_1]
+        y = vals[task_2]
+        r, _ = stats.pearsonr(x, y)
+        r_values.append(r)
+        scatter_data.append((x, y, r, layer, task_1, task_2))
+
+    # plot main correlation line
+    fig, ax = plt.subplots(figsize=(10, 8))
+    x_values = np.arange(1, len(r_values) + 1)
+    n = 64 # can change number neurons in each layer
+
+    confidence_intervals = [confidence_interval(r, n) for r in r_values]
+    lower_bounds = [ci[0] for ci in confidence_intervals]
+    upper_bounds = [ci[1] for ci in confidence_intervals]
+
+    ax.errorbar(x_values, r_values, 
+                yerr=[np.abs(np.array(r_values) - np.array(lower_bounds)), 
+                      np.abs(np.array(upper_bounds) - np.array(r_values))],
+                fmt='o', capsize=5, linestyle='--')
+
+    ax.set_xticks(x_values)
+    ax.set_xticklabels([str(i) for i in x_values])
+    ax.set_ylabel('Correlation (r-value)', labelpad=2)
+    ax.set_xlabel('Convolutional layer', labelpad=2)
+    ax.set_title('Correlation in Neuron Shapley Values Between Tasks Across Layers')
+
+    # add inset axes below x-axis
+    fig.subplots_adjust(bottom=0.3)
+    for i, (x, y, r, layer, task_1, task_2) in enumerate(scatter_data):
+        inset_width = 0.12
+        inset_height = 0.18
+        left = 0.13 + i * (0.83 / len(scatter_data))  # even horizontal spacing
+        bottom = 0.035
+
+        inset_ax = fig.add_axes([left, bottom, inset_width, inset_height])
+        inset_ax.scatter(x, y, alpha=0.7)
+        inset_ax.set_title(f'{layer}\nr = {r:.2f}', fontsize=8)
+        inset_ax.set_xlabel(f'{task_1}', fontsize=6, labelpad=1)
+        inset_ax.set_ylabel(f'{task_2}', fontsize=6, labelpad=1)
+        inset_ax.tick_params(axis='both', which='major', labelsize=6)
+
+    plt.savefig('vis/shap/layer_corr/combined_below_graph.png')
 
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
     model_name = params.MODEL_NAME
+
+    players_dict = {}
+    results_dict_by_layer = {}
     
     for layer in LAYERS:
         results = {}
@@ -318,7 +402,11 @@ if __name__ == '__main__':
             players = get_players(run_dir)
             instatiate_chosen_players(run_dir, players)    
             results[model_type] = get_results_list(run_dir)
+            players_dict[layer] = players
+            results_dict_by_layer[layer] = results
+
         plot_layer_by_task(players, results, layer)
+
     for model_type in TYPES:
         for layer in LAYERS:
             ## CB directory
@@ -373,3 +461,7 @@ if __name__ == '__main__':
     ax.set_title('Correlation in Neuron Shapley Values Between Tasks Across Layers')
     ax.legend()
     plt.savefig('vis/shap/layer_corr/all_layers.png')
+
+    plot_all_layer_scatter(players_dict, results_dict_by_layer, LAYERS)
+
+    
