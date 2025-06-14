@@ -167,7 +167,7 @@ with tqdm(total=400, dynamic_ncols=True, file=sys.stdout) as pbar:
             # if i == 10:
             #     break
 edges = sorted(graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
-normalize_edge_weights(graph)
+#normalize_edge_weights(graph)
 # for src, tgt, data in edges[:20]:
 #     print(f"{src} → {tgt}, weight = {data['weight']:.4f}")
 pickle.dump(graph, open('graphs/sim_weight_activity_2.pickle', 'wb'))

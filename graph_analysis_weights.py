@@ -8,6 +8,7 @@ def get_activation_graph():
     
     return
 import pickle
+from graph_analysis_shapley import normalize_edge_weights
 from utils.parameters import Params
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3  
 from data_processing.data_loader_v2 import DataLoader  
@@ -77,14 +78,13 @@ def compute_kernel_similarity(kernel_Y, fmap_X):
     return out
 
 # Main function to compute kernel connectivity graph
-def build_connectivity_graph(graph, model):
+def build_connectivity_graph(graph, model, norm=False):
     for layer_idx in range(len(layers) - 1):
         name_X, layer_X = layers[layer_idx]
         name_Y, layer_Y = layers[layer_idx + 1]
         normalized_weights = torch.mean(layer_Y.weight.data.clone(),dim=(2,3))
-        normalized_weights -= normalized_weights.min(1, keepdim=True)[0]
-        normalized_weights /= normalized_weights.max(1, keepdim=True)[0]
-        
+        # normalized_weights -= normalized_weights.min(1, keepdim=True)[0]
+        # normalized_weights /= normalized_weights.max(1, keepdim=True)[0]
         for i in range(layer_X.weight.data.shape[0]):
             for j in range(layer_Y.weight.data.shape[0]):
                 weight = normalized_weights[j:j+1, i:i+1].clone()
@@ -92,7 +92,6 @@ def build_connectivity_graph(graph, model):
                 tgt = f"{name_Y}_k{j}"
                 if weight:
                     graph.add_edge(src, tgt, weight=weight.detach().to('cpu')[0][0].item())
-
     return graph
 graphs = []
 data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
@@ -102,4 +101,4 @@ build_connectivity_graph(graph, model)
 edges = sorted(graph.edges(data=True), key=lambda x: abs(x[2]['weight']))
 for src, tgt, data in edges[:10]:
     print(f"{src} → {tgt}, weight = {data['weight']:.4f}")
-pickle.dump(graph, open('graphs/just_weights_mean.pickle', 'wb'))
+pickle.dump(graph, open('graphs/just_weights2.pickle', 'wb'))
