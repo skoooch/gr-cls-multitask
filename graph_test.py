@@ -23,6 +23,39 @@ def detach_graph(graph):
     edges = sorted(graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
     for src, tgt, data in edges:
         graph[src][tgt]["weight"] = graph[src][tgt]["weight"].cpu()
+        
+def keep_top_extreme_edges_per_layer(graph, top_n=100):
+    """
+    For each layer-to-layer connection, keep only the top_n edges whose weights are closest to 1 or 0
+    (i.e., farthest from 0.5), using abs(0.5 - x) as the key. Remove all other edges.
+    """
+    node_to_layer = {}
+    for node in graph.nodes():
+        if node == 'image':
+            node_to_layer[node] = 'start'
+        elif '_k' in node:
+            node_to_layer[node] = node.rsplit('_k', 1)[0]
+        else:
+            node_to_layer[node] = node
+
+    # For each (layer_X, layer_Y) pair, process edges
+    for layer_idx in range(len(layers) - 1):
+        layer_X = layers[layer_idx]
+        layer_Y = layers[layer_idx + 1]
+        # Collect all edges between these layers
+        edge_list = []
+        for u, v, data in graph.edges(data=True):
+            if node_to_layer.get(u) == layer_X and node_to_layer.get(v) == layer_Y:
+                edge_list.append((u, v, data))
+        # Sort by abs(0.5 - weight), descending (farthest from 0.5)
+        edge_list_sorted = sorted(edge_list, key=lambda tup: abs(0.5 - tup[2]['weight']), reverse=True)
+        # Keep only the top_n edges
+        to_keep = set((u, v) for u, v, _ in edge_list_sorted[:top_n])
+        # Remove the rest
+        for u, v, _ in edge_list_sorted[top_n:]:
+            if graph.has_edge(u, v):
+                graph.remove_edge(u, v)
+    
 def get_refined_graphs(graph_list, add_start=False, refinedness = 6):
     shap_indices = np.load("shap_arrays/sort_shap_indices.npy")
     refined_graph_list = []
@@ -63,6 +96,40 @@ def get_refined_graphs(graph_list, add_start=False, refinedness = 6):
                         pass
     return refined_graph_list
 
+def get_refined_graphs_dif(graph_list, add_start=False, refinedness = 6):
+    shap_values = np.load("shap_arrays/shap_values.npy")
+    shap_min = shap_values.min(axis=1, keepdims=True)
+    shap_max = shap_values.max(axis=1, keepdims=True)
+    shap_norm = (shap_values - shap_min) / (shap_max - shap_min + 1e-8)
+    diffs = np.abs(shap_norm[:, :, 0] - shap_norm[:, :, 1])
+    shap_inds = np.argsort(diffs[:, :], axis=1)[-refinedness:]
+    refined_graph_list = []
+    for graph in graph_list:
+        refined_graph_list.append(nx.DiGraph())
+    for layer_idx in range(len(layers) - 1):
+        name_X = layers[layer_idx]
+        name_Y = layers[layer_idx + 1]
+        kernels_X = set()
+        kernels_Y = set()
+        for j, kernels in enumerate([kernels_X, kernels_Y]):
+            grasp_flag = False
+            for i in range(refinedness):
+                kernels.add(shap_inds[layer_idx + j, i])
+        for x in kernels_X:
+            for y in kernels_Y:
+                src = f"{name_X}_k{x}"
+                tgt = f"{name_Y}_k{y}"
+                for i, refined_graph in enumerate(refined_graph_list):
+                    try:
+                        try:
+                            refined_graph.add_edge(src, tgt, weight=graph_list[i][src][tgt]["weight"].cpu())
+                        except:
+                            refined_graph.add_edge(src, tgt, weight=graph_list[i][src][tgt]["weight"])
+                        if layer_idx == 0 and add_start:
+                            refined_graph.add_edge("image", src, weight=0.5)
+                    except: 
+                        pass
+    return refined_graph_list
 
 def calculate_graph_measures(graph):
     """
@@ -129,7 +196,7 @@ def spectral_similarity(G1, G2, k=None, normed=False, method='cosine'):
     else:
         raise ValueError("Unsupported method: choose 'cosine', 'euclidean', or 'l1'")
 
-def graph_edge_weight_vector(graph, edge_order=None, default=0.0, weight_attr='weight'):
+def graph_edge_weight_vector(graph, edge_order=None, default=0.0, weight_attr='weight', layer_v = None):
     """Returns a vector of edge weights in a consistent order."""
     if edge_order is None:
         edge_order = sorted(graph.edges())
@@ -137,43 +204,59 @@ def graph_edge_weight_vector(graph, edge_order=None, default=0.0, weight_attr='w
     for u, v in edge_order:
         #and (not "features.0" in u)
         #(not "rgb" in u) and
-        if graph.has_edge(u, v) and "features.7" in v:
-            w = graph[u][v].get(weight_attr, default)
-            vector.append(w)
+        if layer_v:
+            if graph.has_edge(u, v) and layer_v in v:
+                w = graph[u][v].get(weight_attr, default)
+                vector.append(w)
+            else:
+                continue
         else:
-            continue
+            if graph.has_edge(u, v):
+                w = graph[u][v].get(weight_attr, default)
+                vector.append(w)
+            else:
+                continue
         
             
     return np.array(vector), edge_order
 
-def pearson_graph_similarity(G1, G2, weight_attr='weight'):
+def pearson_graph_similarity(G1, G2, weight_attr='weight', print_by_layer=True, vis=False):
     """Computes Pearson correlation between the edge weight vectors of two graphs."""
     # Union of all edges from both graphs
     all_edges = sorted(set(G1.edges()) & set(G2.edges()))
-    print(len(all_edges))
-    vec1, edge_1 = graph_edge_weight_vector(G1, edge_order=all_edges, weight_attr=weight_attr)
-    vec2, edge_2 = graph_edge_weight_vector(G2, edge_order=all_edges, weight_attr=weight_attr)
-    assert(edge_1 == edge_2)
-    # Handle edge case: if all values are constant, correlation is undefined
-    if np.std(vec1) == 0 or np.std(vec2) == 0:
-        return 0.0
-    print(vec1.shape)
-    print(vec2.shape)
-    print(f"Correlating {len(vec1)} edge weights between the two graphs.")
+    if print_by_layer:
+        for layer in [0,4,7,10]:
+            vec1, edge_1 = graph_edge_weight_vector(G1, edge_order=all_edges, weight_attr=weight_attr, layer_v=f'features.{layer}')
+            vec2, edge_2 = graph_edge_weight_vector(G2, edge_order=all_edges, weight_attr=weight_attr, layer_v=f'features.{layer}')
+            assert(edge_1 == edge_2)
+            # Handle edge case: if all values are constant, correlation is undefined
+            if np.std(vec1) == 0 or np.std(vec2) == 0:
+                return 0.0
+            print(pearsonr(vec1, vec2))
+            if vis:
 
-    # Plot the correlation
-    import matplotlib.pyplot as plt
-    plt.figure(figsize=(6, 6))
-    plt.scatter(vec1, vec2, alpha=0.6)
-    plt.xlabel("Graph 1 edge weights")
-    plt.ylabel("Graph 2 edge weights")
-    plt.title("Edge Weight Correlation")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig("edge_weight_correlation.png")
-    plt.close()
-    r, p = pearsonr(vec1, vec2)
-    return r, p 
+                print(f"Correlating {len(vec1)} edge weights between the two graphs.")
+
+                # Plot the correlation
+                import matplotlib.pyplot as plt
+                plt.figure(figsize=(6, 6))
+                plt.scatter(vec1, vec2, alpha=0.6)
+                plt.xlabel("Activity Graph edge weights")
+                plt.ylabel("Shapley Graph weights")
+                plt.title("Edge Weight Correlation")
+                plt.grid(True)
+                plt.tight_layout()
+                plt.savefig(f"edge_weight_correlation_{layer}.png")
+                plt.close()
+    else:
+        vec1, edge_1 = graph_edge_weight_vector(G1, edge_order=all_edges, weight_attr=weight_attr)
+        vec2, edge_2 = graph_edge_weight_vector(G2, edge_order=all_edges, weight_attr=weight_attr)
+        assert(edge_1 == edge_2)
+        # Handle edge case: if all values are constant, correlation is undefined
+        if np.std(vec1) == 0 or np.std(vec2) == 0:
+            return 0.0
+        print(pearsonr(vec1, vec2))
+    
 def print_edges(G):
     edges = sorted(G.edges(data=True), key=lambda x: -abs(x[2]['weight']))
     for src, tgt, data in edges[:20]:
@@ -244,15 +327,15 @@ def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
     shap_max = shap_values.max(axis=1, keepdims=True)
     shap_norm = (shap_values - shap_min) / (shap_max - shap_min + 1e-8)
 
-    graph = pickle.load(open('graphs/sim_weight_activity.pickle', 'rb'))
-    detach_graph(graph)
+    graph = pickle.load(open('graphs/just_weights.pickle', 'rb'))
+    # detach_graph(graph)
     # --- Normalize edge weights between each pair of layers ---
     # Build mapping from node to layer
     normalize_edges_per_layer(graph)
     graph = get_refined_graphs([graph], add_start=True, refinedness=refinedness)[0]
     normalize_edges_per_layer(graph)
     layer_means = get_layer_means(graph)
-    print(layer_means)    
+  
     # --- Node typing based on ranking ---
     node_types = {}
     top_k = refinedness  # number of top kernels per layer/channel
@@ -301,9 +384,6 @@ def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
             pos_thresh = np.percentile(pos_diffs, 80) if len(pos_diffs) > 0 else 0
             neg_thresh = np.percentile(np.abs(neg_diffs), 80) if len(neg_diffs) > 0 else 0
             for kernel_idx in range(diffs.shape[0]):
-                if kernel_idx == 4:
-                    print(diffs[kernel_idx])
-                    print(pos_thresh)
                 node = f"{layer}_k{kernel_idx}"
                 if diffs[kernel_idx] > 0 and diffs[kernel_idx] >= pos_thresh:
                     node_types[node] = 'class'
@@ -399,7 +479,7 @@ def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
     l_mapping = {"0": 0, "4": 1, "7": 2, "10": 3} 
     for u, v, data in graph.edges(data=True):
         w = abs(data['weight'])
-        if w < (100 if u == "image" else layer_means[0 if "rgb" in u else l_mapping[u.split(".")[1][0]]]/2):
+        if w < (100 if u == "image" else layer_means[0 if "rgb" in u else l_mapping[u.split(".")[1][0]]]):
             continue
         t1 = node_types.get(u, 'no_pref')
         t2 = node_types.get(v, 'no_pref')
@@ -449,9 +529,147 @@ def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
 
     matplotlib.use("Agg")
     fig.tight_layout()
-    fig.savefig("graph_discrete.png")
+    fig.savefig("graph_discrete.png", dpi=300)
     
-    
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+def visualize_graph_discrete_3d():
+    refinedness = 10
+    shap_values = np.load("shap_arrays/shap_values.npy")
+    diff = False
+    # Normalize shapley values to [0, 1] for each layer and channel separately
+    shap_min = shap_values.min(axis=1, keepdims=True)
+    shap_max = shap_values.max(axis=1, keepdims=True)
+    shap_norm = (shap_values - shap_min) / (shap_max - shap_min + 1e-8)
+
+    graph = pickle.load(open('graphs/sim_weight_activity.pickle', 'rb'))
+    detach_graph(graph)
+    normalize_edges_per_layer(graph)
+    graph = get_refined_graphs([graph], add_start=True, refinedness=refinedness)[0]
+    normalize_edges_per_layer(graph)
+    layer_means = get_layer_means(graph)
+
+    # --- Node typing based on top 20% most extreme ---
+    node_types = {}
+    for layer_idx, layer in enumerate(layers):
+        diffs = shap_norm[layer_idx, :, 0] - shap_norm[layer_idx, :, 1]
+        abs_diffs = np.abs(diffs)
+        perc = np.percentile(abs_diffs, 80)
+        for kernel_idx in range(diffs.shape[0]):
+            node = f"{layer}_k{kernel_idx}"
+            if abs_diffs[kernel_idx] >= perc:
+                if diffs[kernel_idx] > 0:
+                    node_types[node] = 'class'
+                else:
+                    node_types[node] = 'grasp'
+            else:
+                node_types[node] = 'no_pref'
+    for node in graph.nodes():
+        if node == 'image':
+            node_types[node] = 'start'
+
+    node_color_map = {
+        'class': '#4F8DF7',      # blue
+        'grasp': '#F7A24F',      # orange
+        'no_pref': '#B0B0B0',    # gray
+        'start': '#f0f0f0'
+    }
+    node_colors = [node_color_map[node_types[n]] for n in graph.nodes()]
+
+    # --- 3D Node positions ---
+    layer_x_gap = 10
+    grid_size = (3, 4)  # 3 rows, 4 cols (for up to 12 nodes)
+    pos3d = {}
+
+    # Place the start node
+    pos3d['image'] = (-layer_x_gap, 0, 0)
+
+    # For each layer, arrange nodes in a grid
+    node_distance = 0.5
+    for i, layer in enumerate(layers):
+        x = i * layer_x_gap
+        # Get all nodes for this layer
+        layer_nodes = [n for n in graph.nodes() if n.startswith(layer + "_k")]
+        
+        for j, node in enumerate(layer_nodes):
+            row = j // grid_size[1]
+            col = j % grid_size[1]
+            y = (col - (grid_size[1] - 1) / 2) * node_distance
+            z = (row - (grid_size[0] - 1) / 2) * node_distance
+            pos3d[node] = (x, y, z)
+
+    # Place any other nodes (shouldn't be any, but just in case)
+    for node in graph.nodes():
+        if node not in pos3d:
+            pos3d[node] = (0, 0, 0)
+
+    # --- 3D Plot ---
+    fig = plt.figure(figsize=(12, 8))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.view_init(elev=30, azim=95)
+    # Draw nodes
+    for node in graph.nodes():
+        x, y, z = pos3d[node]
+        ax.scatter(x, y, z, color=node_color_map[node_types[node]], s=120, edgecolors='black', depthshade=True)
+        # Node label
+        label = node.split('_k')[-1] if '_k' in node else node
+        ax.text(x, y, z+0.3, label, fontsize=8, ha='center', va='center')
+
+    # Draw edges
+    edge_colors = []
+    edge_styles = []
+    edges_to_draw = []
+    edge_weights = []
+    l_mapping = {"0": 0, "4": 1, "7": 2, "10": 3}
+    for u, v, data in graph.edges(data=True):
+        w = abs(data['weight'])
+        if w < (100 if u == "image" else layer_means[0 if "rgb" in u else l_mapping[u.split(".")[1][0]]]/2):
+            continue
+        t1 = node_types.get(u, 'no_pref')
+        t2 = node_types.get(v, 'no_pref')
+        if t1 == t2 and t1 in ['class', 'grasp']:
+            color = '#4F8DF7' if t1 == 'class' else '#F7A24F'
+            style = '-'
+        elif 'no_pref' in (t1, t2) or t1 == "image":
+            color = '#B0B0B0'
+            style = ':'
+        else:
+            color = '#7D3C98'
+            style = '--'
+        edge_colors.append(color)
+        edge_styles.append(style)
+        edges_to_draw.append((u, v))
+        edge_weights.append(w*2)
+
+    # Draw edges by style
+    for style in set(edge_styles):
+        idxs = [i for i, s in enumerate(edge_styles) if s == style]
+        for i in idxs:
+            u, v = edges_to_draw[i]
+            x_vals = [pos3d[u][0], pos3d[v][0]]
+            y_vals = [pos3d[u][1], pos3d[v][1]]
+            z_vals = [pos3d[u][2], pos3d[v][2]]
+            ax.plot(x_vals, y_vals, z_vals, color=edge_colors[i], linewidth=edge_weights[i], linestyle=style, alpha=0.7)
+
+    # Legend
+    legend_elements = [
+        Patch(facecolor='#4F8DF7', edgecolor='black', label='Classification node'),
+        Patch(facecolor='#F7A24F', edgecolor='black', label='Grasp node'),
+        Patch(facecolor='#B0B0B0', edgecolor='black', label='No preference node'),
+        Patch(facecolor='#f0f0f0', edgecolor='black', label='Start node'),
+        Line2D([0], [0], color='#4F8DF7', lw=2, label='Class→Class edge', linestyle='-'),
+        Line2D([0], [0], color='#F7A24F', lw=2, label='Grasp→Grasp edge', linestyle='-'),
+        Line2D([0], [0], color='#7D3C98', lw=2, label='Class↔Grasp edge', linestyle='--'),
+        Line2D([0], [0], color='#B0B0B0', lw=2, label='Edge to/from No preference', linestyle=':'),
+    ]
+    ax.legend(handles=legend_elements, loc='upper left', bbox_to_anchor=(1, 1), fontsize=8, frameon=True)
+    ax.set_title("3D Node/Edge Types by Shapley Ranking", fontsize=12, pad=20)
+    ax.set_axis_off()
+    plt.tight_layout()
+    plt.savefig("graph_discrete_3d.png")
+    plt.close()
+   
 def visualize_graph():
     shap_values = np.load("shap_arrays/shap_values.npy")
     
@@ -579,15 +797,16 @@ def visualize_graph():
     
 refine_graphs = True
 
-activity_graph = pickle.load(open('graphs/sim_weight.pickle', 'rb'))
+activity_graph = pickle.load(open('graphs/just_weights.pickle', 'rb'))
 shapley_graph = pickle.load(open('graphs/shap_graph_fix.pickle', 'rb'))
 dummy_graph = nx.DiGraph()
 edges = sorted(activity_graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
 for src, tgt, data in edges:
-    dummy_graph.add_edge(src, tgt, weight=10)  
+    dummy_graph.add_edge(src, tgt, weight=10) 
 if refine_graphs:
-    activity_graph, shapley_graph, dummy_graph = get_refined_graphs([activity_graph, shapley_graph, dummy_graph], add_start = False, refinedness=10) 
+    activity_graph, shapley_graph, dummy_graph = get_refined_graphs_dif([activity_graph, shapley_graph, dummy_graph], add_start = False, refinedness=10) 
 visualize_graph_discrete()
+exit()
 # exit()
 # print_edges(activity_graph)
 # print("---------------------------------")
@@ -595,8 +814,7 @@ visualize_graph_discrete()
 # print(weighted_graph_similarity_cosine(activity_graph, shapley_graph))
 # print(weighted_graph_similarity_cosine(dummy_graph, activity_graph))
 # print(weighted_graph_similarity_cosine(dummy_graph, shapley_graph))
-
-print(pearson_graph_similarity(activity_graph, shapley_graph))
+pearson_graph_similarity(activity_graph, shapley_graph, vis=True)
 # print(pearson_graph_similarity(dummy_graph, activity_graph))
 # print(pearson_graph_similarity(dummy_graph, shapley_graph))
 

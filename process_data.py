@@ -50,7 +50,7 @@ def get_data_matlab(task,avr=False, left = False):
         removed_participants = [2,11,7,3,10,12,13] # add more participants as needed
         # removed_participants = [2,10,12,13]
     else:
-        removed_participants = [1,10,12,13]
+        removed_participants = [1,10,12,13, 16]
         #removed_participants = [1,2,11,7,3,10,12,13]
     for i in range(1,17):
         if i not in removed_participants:
@@ -77,8 +77,8 @@ def get_data_matlab(task,avr=False, left = False):
             summed = concat_begin.sum(axis=0)/len(object_to_average_over_exp)
             # 20:33 + 56: is all the back
             
-            # if not left: summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
-            # else: summed = summed[:, 20:33]
+            if not left: summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
+            else: summed = summed[:, 20:33]
             assert(summed.shape[0] == 307)
             all_data[category].append(summed)
     return all_data
