@@ -196,7 +196,7 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
     corrs = []
-    data = get_data_matlab(task,avr=True)
+    data = get_data_matlab(task,avr=True, left=False)
     
     for i in range(len(times)):
         corrs.append([])
@@ -242,7 +242,7 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
         one_tailed_p_value = p_value / 2 if t_stat > 0 else 1 - p_value / 2
         print(f"time period {i+1}, {task}, p-value (1-tailed against 0): {one_tailed_p_value}")
     ind = np.arange(N)  
-    width = 0.15
+    width = 0.13
     plt.figure()
     bars = []
     n = 325
@@ -253,30 +253,33 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
         # # Extract lower and upper bounds
         # lower_bounds = [ci[0] for ci in confidence_intervals]
         # upper_bounds = [ci[1] for ci in confidence_intervals]
-        bar = plt.bar(ind + width*i, vals,  width, color = (0.2, 0.4, 0.2, 1- 0.1*i)) 
+        if task == "grasp":
+            bar = plt.bar(ind + width*i, vals,  width, color = (0.2, 0.2, 1, 1- 0.15*i)) 
+        else:
+            bar = plt.bar(ind + width*i, vals,  width, color = (1, 0.2, 0.2, 1- 0.15*i))
         bars.append(bar)
         for j, rect in enumerate(bar):
             height = rect.get_height()
-            if corrs[j, i][1] < 0.05:
+            if corrs[j, i][1] < 0.05 and corrs[j,i][0] > 0:
                 plt.text(rect.get_x() + rect.get_width() / 2.0, height, "*", ha='center', va='bottom')
     ticks = [f'{desire_times[i][0]}-{desire_times[i][1]}' for i in range(len(desire_times))]
-    plt.xticks(ind+width,ticks) 
+    plt.xticks(ind+width, ticks, fontsize=9)
     plt.legend(bars, ('1st Layer', '2nd Layer', '3rd Layer', '4th Layer', '5th Layer') ) 
     if task == "class" or task == "cls":
-        plt.title(f"Correlation of EEG RSM with Model RSMs: \n Recognition Task - {name_suffix}")
+        plt.title(f"Correlation of EEG RSM with Model RSMs: \n Recognition Task")
     else:
-        plt.title(f"Correlation of EEG RSM with Model RSMs:\n Grasp Task - {name_suffix}")
-    plt.xlabel("Time Periods (ms from beginning of stimulus)")
-    plt.ylabel("Correlation")
+        plt.title(f"Correlation of EEG RSM with Model RSMs:\n Grasp Task")
+    plt.xlabel("Time Periods (ms from Stimulus Onset)")
+    plt.ylabel("Correlation (r-value)")
     ax = plt.gca()
     ax.set_ylim([-0.2, 0.5])
     plt.axhline(y=0, color='black', linestyle='-')
     plt.figtext(0.1, 0.01, "*: p-value < 0.05", ha="center", fontsize=10)
-    plt.savefig("vis/rsm_correlation/%s_%s" % (task, name_suffix))
+    plt.savefig("vis/rsm_correlation_1/%s_%s" % (task, name_suffix), dpi=300)
 suffix = sys.argv[1]
 task = sys.argv[2]
-desire_times = [(-50, 0), (0, 75), (75, 125),(125, 175),(175, 225),(225,300), (300, 400)]  
-#desire_times = [(0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 300)]  
+
+desire_times = [(0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 300)]  
 #timepoints are identical across the files so this can stay the same
 tp_file = 'data/timepoints_8_cls.csv'
 timepoints = np.loadtxt(tp_file, delimiter=',')
@@ -290,13 +293,18 @@ except:
     model_path = ""
 for task in ["grasp", "class"]:
     #change these as necessary
-    desire_times = [(-50, 0), (0, 75), (75, 125),(125, 175),(175, 225),(225,300), (300, 450)]  
-    #desire_times = [(0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 300)]  
+    #desire_times = [(0, 50), (50, 75),(75, 125),(125, 166),(166,205), (205, 253), (253, 300)]  
+    #desire_times = [(0, 100), (100, 200),(200, 300),(300, 400)] 
+    #desire_times = [(0, 75), (75, 150),(150, 225),(225, 300), (300, 375)] 
+    #desire_times = [(0, 25),(25,50), (50, 75),(75,100),(100, 125),(125,150),(150, 175),(175,200), (200,225),(225,250),(250,275),(275,300), (300,325)]
+    desire_times = [(-50,0), (0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 300), (300,350)]  
     #timepoints are identical across the files so this can stay the same
     tp_file = 'data/timepoints_8_cls.csv'
     timepoints = np.loadtxt(tp_file, delimiter=',') 
     #convert desired timepoints into actual time points
     times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
-    model_rsm_folder_path = f'saved_model_rsms/{model_path}'
-    perform_rsm_vis(times, task=task, time_region=3)
-    #comparative_analysis(model_rsm_folder_path, timepoints, times, task, name_suffix=suffix)
+    if model_path:
+        model_rsm_folder_path = f'saved_model_rsms/{task}/{model_path}'
+    else:
+        model_rsm_folder_path = f'saved_model_rsms/'
+    comparative_analysis(model_rsm_folder_path, timepoints, times, task, name_suffix=suffix)
