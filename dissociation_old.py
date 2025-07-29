@@ -9,20 +9,18 @@ from training.single_task.evaluation import get_cls_acc, get_grasp_acc, denormal
 import numpy as np
 import pandas as pd
 from statsmodels.stats.anova import AnovaRM
-from scipy import stats
-
 from data_processing.data_loader_v2 import DataLoader
 from utils.utils import get_correct_cls_preds_from_map
 from utils.grasp_utils import get_correct_grasp_preds
 
 params = Params()
-data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
+params =data_loader = DataLoader(params.TEST_PATH, 1, params.TRAIN_VAL_SPLIT)
 
-def get_cls_dist(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None, device=params.DEVICE, dissociate=[]):
+def get_cls_dist(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None, device=params.DEVICE):
     loss = 0
     correct = 0
     total = 0
-    dist = np.zeros(400)
+    dist = np.zeros(len(data_loader.load_grasp()))
     if(dataset == params.TEST_PATH):
         for i, (img, cls_map, label) in enumerate(data_loader.load_cls()):
             if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
@@ -33,12 +31,12 @@ def get_cls_dist(model, include_depth=True, seed=None, dataset=params.TEST_PATH,
             total += batch_total
             dist[i] = batch_correct*100.0
     return dist        
-def get_grasp_dist(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None, device=params.DEVICE, dissociate=[]):
+def get_grasp_dist(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=None, device=params.DEVICE):
     """Returns the test accuracy and loss of a Grasp model."""
     loss = 0
     correct = 0
     total = 0
-    dist = np.zeros(400)
+    dist = np.zeros(data_loader.load_grasp())
     if(dataset == params.TEST_PATH):
         for i, (img, map, candidates) in enumerate(data_loader.load_grasp()):
             if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
@@ -75,25 +73,30 @@ if len(sys.argv) > 1:
     
 ###-------- Change these values for different layer and anaysis -----------
 diff = True
-layer = 1
-load_data = False
+layer = 4
+load_data = True
 ### ------------------------------
 
 if diff: top = torch.tensor(np.load("shap_arrays/sort_shap_indices_diff_normalized.npy"), dtype=int)
 else: top = torch.tensor(np.load("shap_arrays/sort_shap_indices.npy"), dtype=int)
 
-data_length = 32
+print(top.shape)
+print(top[0, :, 0])
+data_length = 16
 
 if not load_data:
-    data = np.zeros((data_length, 2, 2,400), np.float16)
+    data = np.zeros((data_length, 2, 2,len(data_loader.load_grasp())), np.float16)
     for lesion_i in range(data_length):
         for i in range(2):
             dissociate = top[:,:lesion_i,i]
             dissociate[:layer, :] = 0
             dissociate[layer + 1:, :] = 0
             # Get test acc for CLS model
-            data[lesion_i, i, 0] = get_cls_dist(model, include_depth=True, seed=None, dataset=path, truncation=None, dissociate=dissociate)
-            data[lesion_i, i, 1] = get_grasp_dist(model, include_depth=True, seed=None, dataset=path, truncation=None, dissociate=dissociate)
+            c_accuracy, c_loss = get_cls_acc(model, include_depth=True, seed=None, dataset=path, truncation=None, dissociate=dissociate)
+            # Get test acc for Grasp model
+            accuracy, loss = get_grasp_acc(model, include_depth=True, seed=None, dataset=path, truncation=None, dissociate=dissociate)
+            data[lesion_i, i, 0] = c_accuracy
+            data[lesion_i, i, 1] = accuracy
     np.save(f'layer_{layer}_data.npy', data)
 else:
     data = np.load(f'layer_{layer}_data.npy')
@@ -101,33 +104,33 @@ else:
 x = range(data.shape[0])
 
 #### T CURVES ###########3
-
+from scipy.stats import ttest_ind
 
 # ...existing code for data generation...
 
 # Calculate t-values for each curve compared to the baseline (lesion_i=0)
 t_values = np.zeros_like(data)
-baseline = [85, 81.5]
+baseline = data[0]  # shape: (2, 2)
 
 for lesion_i in range(data_length):
     for i in range(2):  # 0: class kernels, 1: grasp kernels
         for j in range(2):  # 0: classification accuracy, 1: grasp accuracy
             # t-test: compare current accuracy to baseline
-            t_stat, _ = stats.ttest_1samp(data[lesion_i, i, j], baseline[j], alternative="less")
-            t_values[lesion_i, i, j] = t_stat**2
+            print([data[lesion_i, i, j]])
+            print(baseline[i, j])
+            t_stat, _ = ttest_ind([data[lesion_i, i, j]], [baseline[i, j]], equal_var=False)
+            t_values[lesion_i, i, j] = t_stat
 
 # Plot t-value curves
 plt.figure(figsize=(10, 8))
 plt.plot(x, t_values[:, 0, 0], label='T-value: Classification (CLS Kernels)', linestyle='--', color='red')
 plt.plot(x, t_values[:, 0, 1], label='T-value: Grasp (CLS Kernels)', linestyle='-', color='blue')
-plt.plot(x, t_values[:, 1, 0], label='T-value: Classification (Grasp Kernels)', linestyle='-', color='red')
-plt.plot(x, t_values[:, 1, 1], label='T-value: Grasp (Grasp Kernels)', linestyle='--', color='blue')
+plt.plot(x, t_values[:, 1, 0], label='T-value: Classification (Grasp Kernels)', linestyle='-', color='orange')
+plt.plot(x, t_values[:, 1, 1], label='T-value: Grasp (Grasp Kernels)', linestyle='--', color='green')
 plt.title(f'T-value Curves for Lesioning (Layer {layer + 1})')
 plt.xlabel('Lesion Index')
-plt.ylabel('T^2-value')
-handles, labels = plt.gca().get_legend_handles_labels()
-by_label = dict(zip(labels, handles))
-plt.legend(by_label.values(), by_label.keys())
+plt.ylabel('T-value')
+plt.legend()
 plt.tight_layout()
 if diff:
     plt.savefig(f'vis/lesion/tvalue_curves_diff_normalized_layer_{layer}.png', dpi=300)
@@ -138,25 +141,11 @@ plt.close()
 anova_f_values = []
 for lesion_i in range(data_length):
     # Prepare data for ANOVA: 4 measurements (task × lesion type)
-    # Prepare accuracy values for this lesion_i (shape: 2 tasks × 2 lesion types × 400 samples)
-    # Flatten all 400 samples for each condition into the DataFrame
-    acc_list = []
-    task_list = []
-    lesion_type_list = []
-    subject_list = []
-    for task_idx, task_name in enumerate(['CLS', 'Grasp']):
-        for lesion_idx, lesion_name in enumerate(['CLS', 'Grasp']):
-            # Each data[lesion_i, lesion_idx, task_idx] is an array of 400 samples
-            accs = data[lesion_i, lesion_idx, task_idx].flatten()
-            acc_list.extend(accs)
-            task_list.extend([task_name] * len(accs))
-            lesion_type_list.extend([lesion_name] * len(accs))
-            subject_list.extend(np.arange(len(accs)))  # Each sample as a subject
     df = pd.DataFrame({
-        'accuracy': acc_list,
-        'task': task_list,
-        'lesion_type': lesion_type_list,
-        'subject': subject_list
+        'accuracy': data[lesion_i].flatten(),
+        'task': ['CLS', 'CLS', 'Grasp', 'Grasp'],
+        'lesion_type': ['CLS', 'Grasp', 'CLS', 'Grasp'],
+        'subject': [0, 0, 0, 0]  # If you have multiple seeds, use actual subject IDs
     })
     # Run repeated-measures ANOVA
     aov = AnovaRM(df, 'accuracy', 'subject', within=['task', 'lesion_type'])

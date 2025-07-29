@@ -8,6 +8,7 @@ import sys
 import os
 from PIL import Image
 from scipy.spatial.distance import squareform, pdist
+from skimage.exposure import match_histograms
 from sklearn import manifold, datasets
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from data_processing.data_loader_v2 import DataLoader
@@ -119,11 +120,12 @@ def get_rgb_activations(model, images, labels, depth=False, top = None, is_grasp
         if label not in activations.keys(): activations[label] = []
         if depth:
             d = torch.unsqueeze(img[:, 3, :, :], dim=1)
+            d = torch.from_numpy(match_histograms(d.cpu().numpy(), np.load("test_depth.npy"))).to("cuda")
             d = torch.cat((d, d, d), dim=1)
             if top:
-                activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,top[0, :,is_grasp],:,:], model.d_features(d)), dim=1)
+                activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,top[0, :,is_grasp],:,:], model.d_features[0](d)), dim=1)
             else:
-                activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,:,:,:], model.d_features(d)), dim=1)
+                activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,:,:,:], model.d_features[0](d)), dim=1)
             activations[label].append(activation)
         else:
             if top:
@@ -222,7 +224,7 @@ def get_activation(name):
         activation[name] = output.detach()
     return hook
 
-images = load_images_to_arrays(depth=False)
+images = load_images_to_arrays(depth=True)
 DEVICE = sys.argv[1]
 MODEL_NAME = params.MODEL_NAME
 MODEL_PATH = params.MODEL_WEIGHT_PATH
@@ -232,8 +234,7 @@ data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_S
 labels = ['A', 'B', 'C', 'D', 'E']
 labels_repeated = np.repeat(labels, 5)
 is_grasp = True
-rgb = get_rgb_activations(model, images, labels)
-rgb = get_feature_activations(model, images, labels, layer_i=1, j = 1)
+rgb = get_rgb_activations(model, images, labels, depth=True)
 # j=0
 # for i in [1, 5, 8, 11]:
 #     j += 1
@@ -244,29 +245,24 @@ rgb = get_feature_activations(model, images, labels, layer_i=1, j = 1)
 #     rgb = np.concatenate((rgb, act_array), axis = 1)
 # print(rgb.shape)
 # print(np.load("saved_model_rsms/rgb.npy").shape)
-visualize_rsm(squareform(pdist(rgb, metric="correlation")), title=f"Second Convolutional Layer RDM", is_grasp = is_grasp)
-exit()
-selected_kernels = torch.tensor(np.load("shap_arrays/smallest20.npy"), dtype=int).to("cuda")
-rsm_folder = "smallest20"
+# visualize_rsm(squareform(pdist(rgb, metric="correlation")), title=f"Second Convolutional Layer RDM", is_grasp = is_grasp)
+# exit()
+# selected_kernels = torch.tensor(np.load("shap_arrays/smallest20.npy"), dtype=int).to("cuda")
+# rsm_folder = "smallest20"
 
-for is_grasp in range(0, 2):
-    act_array = get_rgb_activations(model, images, labels, top=selected_kernels, is_grasp=is_grasp)
-    result = squareform(pdist(act_array, metric="correlation"))
-    if is_grasp == 0:
-        np.save(f"saved_model_rsms/class/{rsm_folder}/rgb.npy", result)
-    else:
-        np.save(f"saved_model_rsms/grasp/{rsm_folder}/rgb.npy", result)
+
+act_array = get_rgb_activations(model, images, labels,depth=True)
+result = squareform(pdist(act_array, metric="correlation"))
+np.save(f"saved_model_rsms/depth/0.npy", result)
+
 j = 0
 for i in [1, 5, 8, 11]:
     j += 1
-    for is_grasp in range(0, 2):
-        act_array = get_feature_activations(model, images, labels, layer_i=i,top=selected_kernels, j=j, top_size=selected_kernels.shape[1], is_grasp=is_grasp)
-        result = squareform(pdist(act_array, metric="correlation"))
-        if is_grasp == 0:
-            np.save(f"saved_model_rsms/class/{rsm_folder}/features_%s.npy" % (i-1), result)
-        else:
-            np.save(f"saved_model_rsms/grasp/{rsm_folder}/features_%s.npy" % (i-1), result)
-            
+    
+    act_array = get_feature_activations(model, images, labels, layer_i=i, j=j)
+    result = squareform(pdist(act_array, metric="correlation"))
+    np.save(f"saved_model_rsms/depth/{j}.npy", result)
+    
 exit() # remove this if you want to do the visualization
 
 
