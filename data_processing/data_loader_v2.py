@@ -115,7 +115,6 @@ class DataLoader:
             label[5] = 1.0
 
             img_path = os.path.join(self.path, img_cls, img_id)
-
             # Open RGB npy file
             img_rgb = np.load(open(os.path.join(img_path, img_name + '_RGB.npy'), 'rb'))
             img_rgb = torch.tensor(img_rgb, dtype=torch.float32).to(self.device)

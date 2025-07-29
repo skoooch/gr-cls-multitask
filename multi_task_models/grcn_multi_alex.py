@@ -129,6 +129,7 @@ class Multi_AlexnetMap_v3(nn.Module):
         rgb = x[:, :3, :, :]
         d = torch.unsqueeze(x[:, 3, :, :], dim=1)
         d = torch.cat((d, d, d), dim=1)
+        # d = torch.zeros(d.shape).to("cuda")
         # First Layer Shapley!!!!! -------------------------------------------------------
         # if shap_mask != []:
             
@@ -153,14 +154,23 @@ class Multi_AlexnetMap_v3(nn.Module):
         d = self.d_features(d)
         x = torch.cat((rgb, d), dim=1)
         if shap_mask != []:
-            features_conv_out = self.features[0:11](x)
             shap_mask_idx = shap_mask.bool()  # Convert to a boolean mask for indexing
             # Broadcast activations to match the shape of the output
             broadcasted_activations = activations.unsqueeze(0)  # Add batch dimension
-            broadcasted_activations = broadcasted_activations.expand_as(features_conv_out)  # Expand to match rgb_conv_out's shape
+            broadcasted_activations = broadcasted_activations.expand_as(x)  # Expand to match rgb_conv_out's shape
             # Set rgb_conv_out where shap_mask is True
-            features_conv_out[:, shap_mask_idx, :, :] = broadcasted_activations[:, shap_mask_idx, :, :]
-            x = self.features[11:](features_conv_out)
+            x[:, shap_mask_idx, :, :] = broadcasted_activations[:, shap_mask_idx, :, :]
+            for i in range(len(self.features)):
+                x = self.features[i](x)
+            #------------shapley non first layer ----------
+            # features_conv_out = self.features[0:11](x)
+            # shap_mask_idx = shap_mask.bool()  # Convert to a boolean mask for indexing
+            # # Broadcast activations to match the shape of the output
+            # broadcasted_activations = activations.unsqueeze(0)  # Add batch dimension
+            # broadcasted_activations = broadcasted_activations.expand_as(features_conv_out)  # Expand to match rgb_conv_out's shape
+            # # Set rgb_conv_out where shap_mask is True
+            # features_conv_out[:, shap_mask_idx, :, :] = broadcasted_activations[:, shap_mask_idx, :, :]
+            # x = self.features[11:](features_conv_out)
         elif dissociate != []:
             prev = 0
             for index, i in enumerate([1,5,8,11]):

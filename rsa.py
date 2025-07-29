@@ -183,7 +183,7 @@ def visualize_eeg_rsm(task):
     result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
     visualize_rsm(result, f"eeg_single", title = "Recognition task-Related EEG RDM (125–175 ms) from Posterior Brain Regions")
       
-def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suffix="plot"):
+def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suffix="plot", avr=True):
     """
     Compare the RSM of EEG data with the RSM of model data.
     Args:
@@ -196,37 +196,74 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
     corrs = []
-    data = get_data_matlab(task,avr=True, left=False)
-    
-    for i in range(len(times)):
-        corrs.append([])
-        labels = data.keys()
-        activations_flat = []
-        time_period = (np.where(timepoints == times[i][0])[0][0], np.where(timepoints == times[i][1])[0][0])
-        points_per_object = {}
-        for cat in label_order:
-            points_per_object[cat] = 0
-            for object_data in data[cat]:
-                relevant_signal = object_data[time_period[0]:time_period[1], :]
-                activations_flat.append(relevant_signal.flatten())
-                points_per_object[cat] += 1
-        act_array = np.asarray(activations_flat)
-        
-        result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
-        
-        # List all .npy files in the folder
-        model_order = ["rgb.npy", "features_0.npy", "features_4.npy", "features_7.npy", "features_10.npy"]
-        npy_files = [f for f in os.listdir(model_rsm_path) if f.endswith('.npy')]
-        matrices = {}
-        for file in npy_files:
-            file_path = os.path.join(model_rsm_path, file)
-            matrices[file] = np.load(file_path)  # Load and store each matrix in the dictionary
-        for file in model_order:
-            model_matrix = matrices[file]
-            rsm1_flat = result[np.triu_indices(result.shape[0], k=1)]
-            rsm2_flat = model_matrix[np.triu_indices(model_matrix.shape[0], k=1)]
-            ## THIS IS WHERE THE CORRELATION between eeg and model IS CALCULATED
-            corrs[i].append(pearsonr(rsm1_flat, rsm2_flat))
+    data = get_data_matlab(task,avr=avr, left=False)
+    if avr:
+        for i in range(len(times)):
+            corrs.append([])
+            labels = data.keys()
+            activations_flat = []
+            time_period = (np.where(timepoints == times[i][0])[0][0], np.where(timepoints == times[i][1])[0][0])
+            points_per_object = {}
+            for cat in label_order:
+                points_per_object[cat] = 0
+                for object_data in data[cat]:
+                    relevant_signal = object_data[time_period[0]:time_period[1], :]
+                    activations_flat.append(relevant_signal.flatten())
+                    points_per_object[cat] += 1
+            act_array = np.asarray(activations_flat)
+            
+            result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
+            
+            # List all .npy files in the folder
+            #model_order = ["rgb.npy", "features_0.npy", "features_4.npy", "features_7.npy", "features_10.npy"]
+            model_order = ["0.npy", "1.npy","2.npy","3.npy","4.npy"]
+            npy_files = [f for f in os.listdir(model_rsm_path) if f.endswith('.npy')]
+            matrices = {}
+            for file in npy_files:
+                file_path = os.path.join(model_rsm_path, file)
+                matrices[file] = np.load(file_path)  # Load and store each matrix in the dictionary
+            for file in model_order:
+                model_matrix = matrices[file]
+                rsm1_flat = result[np.triu_indices(result.shape[0], k=1)]
+                rsm2_flat = model_matrix[np.triu_indices(model_matrix.shape[0], k=1)]
+                ## THIS IS WHERE THE CORRELATION between eeg and model IS CALCULATED
+                corrs[i].append(pearsonr(rsm1_flat, rsm2_flat))
+    else:
+        for i in range(len(times)):
+            corrs.append([])
+            # List all .npy files in the folder
+            #model_order = ["rgb.npy", "features_0.npy", "features_4.npy", "features_7.npy", "features_10.npy"]
+            model_order = ["0.npy", "1.npy","2.npy","3.npy","4.npy"]
+            npy_files = [f for f in os.listdir(model_rsm_path) if f.endswith('.npy')]
+            matrices = {}
+            for file in npy_files:
+                file_path = os.path.join(model_rsm_path, file)
+                matrices[file] = np.load(file_path)  # Load and store each matrix in the dictionary
+            for file in model_order:
+                model_matrix = matrices[file]
+                rsm_model_flat = model_matrix[np.triu_indices(model_matrix.shape[0], k=1)]
+                participant_corrs = []
+                rsm1_flat = result[np.triu_indices(result.shape[0], k=1)]
+                for p_data in data:
+                    labels = data.keys()
+                    activations_flat = []
+                    time_period = (np.where(timepoints == times[i][0])[0][0], np.where(timepoints == times[i][1])[0][0])
+                    points_per_object = {}
+                    for cat in label_order:
+                        points_per_object[cat] = 0
+                        for object_data in data[cat]:
+                            relevant_signal = object_data[time_period[0]:time_period[1], :]
+                            activations_flat.append(relevant_signal.flatten())
+                            points_per_object[cat] += 1
+                    act_array = np.asarray(activations_flat)
+                    
+                    result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
+                    ## THIS IS WHERE THE CORRELATION between eeg and model IS CALCULATED
+                    participant_corrs.append(pearsonr(rsm1_flat, rsm2_flat))
+                corrs[i].append(sum(participant_corrs)/len(participant_corrs))
+                
+            
+            
             
     # Plot for each time period
     corrs = np.array(corrs)
@@ -303,7 +340,9 @@ for task in ["grasp", "class"]:
     timepoints = np.loadtxt(tp_file, delimiter=',') 
     #convert desired timepoints into actual time points
     times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
-    if model_path:
+    if model_path == "depth":
+        model_rsm_folder_path = f'saved_model_rsms/{model_path}'
+    elif model_path: 
         model_rsm_folder_path = f'saved_model_rsms/{task}/{model_path}'
     else:
         model_rsm_folder_path = f'saved_model_rsms/'
