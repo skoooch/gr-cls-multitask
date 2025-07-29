@@ -43,7 +43,7 @@ def one_iteration(
     device='cuda',
     chosen_players=None,
     metric='accuracy', 
-    task='cls',
+    task='grasp',
     activations=None):
     '''One iteration of Neuron-Shapley algoirhtm.'''
     if chosen_players is None:
@@ -59,7 +59,7 @@ def one_iteration(
 
     truncation_counter = 0
     old_val = init_val
-    shap_mask = torch.zeros(64)
+    shap_mask = torch.zeros(128)
     for idx in idxs:
         shap_mask[idx] = 1
         # partial_model = remove_players(model, layer, removing_players) 
@@ -110,19 +110,37 @@ def get_model(model_path, device=params.DEVICE):
 
 
 def get_weights(model, layer):
-    for name, W in model.named_parameters():
-        if name == layer+'.weight':
-            weight = torch.split(W, 1, dim=0)
-        elif name == layer+'.bias':
-            bias = torch.split(W, 1, dim=0)
+    if layer == "first":
+        weights = []
+        biases = []
+        for layer in ["rgb_features.0", "d_features.0"]:
+            for name, W in model.named_parameters():
+                if name == layer+'.weight':
+                    weight = torch.split(W, 1, dim=0)
+                elif name == layer+'.bias':
+                    bias = torch.split(W, 1, dim=0)
 
-    assert weight is not None, f"Layer {layer} not found"
-    assert bias is not None, f"Layer {layer} not found"
+            assert weight is not None, f"Layer {layer} not found"
+            assert bias is not None, f"Layer {layer} not found"
 
-    weights = [TensorID(layer+'.weight', None, i) for i, _ in enumerate(weight)]
-    biases = [TensorID(layer+'.bias', None, i) for i, _ in enumerate(bias)]
+            weights += [TensorID(layer+'.weight', None, i) for i, _ in enumerate(weight)]
+            biases += [TensorID(layer+'.bias', None, i) for i, _ in enumerate(bias)]
 
-    return weights, biases
+        return weights, biases
+    else:        
+        for name, W in model.named_parameters():
+            if name == layer+'.weight':
+                weight = torch.split(W, 1, dim=0)
+            elif name == layer+'.bias':
+                bias = torch.split(W, 1, dim=0)
+
+        assert weight is not None, f"Layer {layer} not found"
+        assert bias is not None, f"Layer {layer} not found"
+
+        weights = [TensorID(layer+'.weight', None, i) for i, _ in enumerate(weight)]
+        biases = [TensorID(layer+'.bias', None, i) for i, _ in enumerate(bias)]
+
+        return weights, biases
 
 
 def get_players(directory, weights):
@@ -161,18 +179,18 @@ def average_activations(model):
             rgb = model.rgb_features(rgb)
             d = model.d_features(d)
             x = torch.cat((rgb, d), dim=1)
-            activations.append(model.features[0:11](x)[0].cpu().detach().numpy())
+            activations.append(x[0].cpu().detach().numpy())
             # First layer
             # activations.append(model.rgb_features[0](img[:, :3, :, :])[0].cpu().detach().numpy()[0])
     np_activations_mean = np.zeros(activations[0].shape)
     for activation in activations:
         np_activations_mean += activation
     act_tensor = torch.tensor(np_activations_mean / len(activations))
-    torch.save(act_tensor, os.path.join('shap/activations', 'features_10.pt'))
+    torch.save(act_tensor, os.path.join('shap/activations', 'x.pt'))
 # Experiment parameters
 SAVE_FREQ = 100
-TASK = 'cls'
-LAYER = 'features.10'
+TASK = 'grasp'
+LAYER = 'first'
 METRIC = 'accuracy'
 TRUNCATION_ACC = 50.
 DEVICE = sys.argv[1]
@@ -199,8 +217,9 @@ model = get_model(MODEL_PATH, DEVICE)
 weights, bias = get_weights(model, LAYER)
 weights = weights#[:-2]
 
-#average_activations(model)
-activations = torch.load('shap/activations/features_10.pt').float().cuda()
+# average_activations(model)
+# exit()
+activations = torch.load('shap/activations/x.pt').float().cuda()
 ## Instantiate or load player list
 players = get_players(run_dir, weights)
 # Instantiate tmab logs
