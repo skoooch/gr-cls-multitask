@@ -197,6 +197,8 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
     corrs = []
     data = get_data_matlab(task,avr=avr, left=False)
+    if "depth" not in model_rsm_path: model_order = ["rgb.npy", "features_0.npy", "features_4.npy", "features_7.npy", "features_10.npy"]
+    else: model_order = ["0.npy", "1.npy","2.npy","3.npy","4.npy"]
     if avr:
         for i in range(len(times)):
             corrs.append([])
@@ -215,8 +217,7 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
             result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
             
             # List all .npy files in the folder
-            #model_order = ["rgb.npy", "features_0.npy", "features_4.npy", "features_7.npy", "features_10.npy"]
-            model_order = ["0.npy", "1.npy","2.npy","3.npy","4.npy"]
+            
             npy_files = [f for f in os.listdir(model_rsm_path) if f.endswith('.npy')]
             matrices = {}
             for file in npy_files:
@@ -232,8 +233,7 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
         for i in range(len(times)):
             corrs.append([])
             # List all .npy files in the folder
-            #model_order = ["rgb.npy", "features_0.npy", "features_4.npy", "features_7.npy", "features_10.npy"]
-            model_order = ["0.npy", "1.npy","2.npy","3.npy","4.npy"]
+        
             npy_files = [f for f in os.listdir(model_rsm_path) if f.endswith('.npy')]
             matrices = {}
             for file in npy_files:
@@ -243,28 +243,24 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
                 model_matrix = matrices[file]
                 rsm_model_flat = model_matrix[np.triu_indices(model_matrix.shape[0], k=1)]
                 participant_corrs = []
-                rsm1_flat = result[np.triu_indices(result.shape[0], k=1)]
-                for p_data in data:
-                    labels = data.keys()
+                for p, p_data in enumerate(data):
                     activations_flat = []
                     time_period = (np.where(timepoints == times[i][0])[0][0], np.where(timepoints == times[i][1])[0][0])
                     points_per_object = {}
                     for cat in label_order:
                         points_per_object[cat] = 0
-                        for object_data in data[cat]:
+                        for object_data in data[p][cat]:
                             relevant_signal = object_data[time_period[0]:time_period[1], :]
                             activations_flat.append(relevant_signal.flatten())
                             points_per_object[cat] += 1
                     act_array = np.asarray(activations_flat)
                     
                     result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
+                    rsm_eeg_flat = result[np.triu_indices(result.shape[0], k=1)]
                     ## THIS IS WHERE THE CORRELATION between eeg and model IS CALCULATED
-                    participant_corrs.append(pearsonr(rsm1_flat, rsm2_flat))
-                corrs[i].append(sum(participant_corrs)/len(participant_corrs))
-                
-            
-            
-            
+                    participant_corrs.append(pearsonr(rsm_model_flat, rsm_eeg_flat))
+                corrs[i].append((sum([part[0] for part in participant_corrs])/len(participant_corrs), sum([part[1] for part in participant_corrs])/len(participant_corrs)))
+ 
     # Plot for each time period
     corrs = np.array(corrs)
     N = len(corrs)
@@ -323,7 +319,6 @@ timepoints = np.loadtxt(tp_file, delimiter=',')
 times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
 # time_eeg_rsm(task)
 # exit()
-
 try: 
     model_path = sys.argv[3]
 except:
@@ -333,8 +328,8 @@ for task in ["grasp", "class"]:
     #desire_times = [(0, 50), (50, 75),(75, 125),(125, 166),(166,205), (205, 253), (253, 300)]  
     #desire_times = [(0, 100), (100, 200),(200, 300),(300, 400)] 
     #desire_times = [(0, 75), (75, 150),(150, 225),(225, 300), (300, 375)] 
-    #desire_times = [(0, 25),(25,50), (50, 75),(75,100),(100, 125),(125,150),(150, 175),(175,200), (200,225),(225,250),(250,275),(275,300), (300,325)]
-    desire_times = [(-50,0), (0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 300), (300,350)]  
+    desire_times = [(-100,-75),(-75,-50),(-50,-25), (-25, 0),(0, 25),(25,50), (50, 75),(75,100),(100, 125),(125,150),(150, 175),(175,200), (200,225),(225,250),(250,275),(275,300), (300,325), (325,350), (350,375),(375,398)]
+    #desire_times = [(-50,0), (0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 300), (300,350)]  
     #timepoints are identical across the files so this can stay the same
     tp_file = 'data/timepoints_8_cls.csv'
     timepoints = np.loadtxt(tp_file, delimiter=',') 
@@ -346,4 +341,5 @@ for task in ["grasp", "class"]:
         model_rsm_folder_path = f'saved_model_rsms/{task}/{model_path}'
     else:
         model_rsm_folder_path = f'saved_model_rsms/'
-    comparative_analysis(model_rsm_folder_path, timepoints, times, task, name_suffix=suffix)
+        
+    comparative_analysis(model_rsm_folder_path, timepoints, times, task=task, name_suffix=suffix, avr=True)
