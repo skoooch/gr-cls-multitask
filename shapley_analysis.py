@@ -6,6 +6,8 @@ from sklearn.metrics import r2_score
 from utils.parameters import Params
 from scipy import stats
 import shutil
+from matplotlib.ticker import MaxNLocator, FixedLocator
+
 # Experiment parameters
 TYPES = ['cls', 'grasp']
 LAYERS = ['first','features.0','features.4', 'features.7', 'features.10']
@@ -237,15 +239,12 @@ def plot_shapley_dist(players, results, model_type, layer):
     # No. of iterations for each neuron
     counts = np.clip(counts, 1e-12, None)
    
-
     # Expected shapley values of each neuron
     vals = sums / (counts + 1e-12)
-    
 
     # Variance of shapley values of each neuron
     variances, stds = get_variance_std(sums, vals, squares, counts)
    
-
     # Empirical berstein confidence bounds for each neuron
     cbs = get_cb_bounds(vals, variances, counts)
     sorted_vals_idx = np.argsort(vals)[-params.TOP_K:]
@@ -269,8 +268,9 @@ def plot_shapley_dist(players, results, model_type, layer):
     ax.bar(np.arange(len(vals)), vals, yerr=cbs, align='center', ecolor='lightgrey', color=colors)
     ax.set_xlabel('Kernel Index')
     ax.set_ylabel('Shapley Scores')
-    ax.xaxis.grid(False)
-    ax.yaxis.grid(True)
+    # ax.xaxis.grid(False)
+    ax.axhline(0, color='gray', linewidth=0.7, linestyle='-') 
+    # ax.yaxis.grid(False)
     fig.suptitle("Shapley Values for %s on %s" % (layer, model_type))
 
     plt.savefig('vis/shap/shapley_dist/shapley_dist_%s_%s.png' % (model_type, '_'.join(layer.split('.'))))
@@ -338,6 +338,7 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
     r_values = []
     scatter_data = []
     confidence_intervals = []
+    
     # data for each scatter plot
     for layer in layers:
         players = players_dict[layer]
@@ -357,7 +358,8 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
         task_1, task_2 = list(vals.keys())
         x = vals[task_1]
         y = vals[task_2]
-        print(len(x))
+        # print(len(x))
+
         r, p = get_r(players, results_dict, layer)
         r_values.append(r)
         confidence_intervals.append(p)
@@ -375,30 +377,36 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
     ax.errorbar(x_values, r_values, 
                 yerr=[np.abs(np.array(r_values) - np.array(lower_bounds)), 
                       np.abs(np.array(upper_bounds) - np.array(r_values))],
-                fmt='o', capsize=5, linestyle='--')
+                fmt='o', capsize=5, linestyle='--', color='black')
 
     ax.set_xticks(x_values)
-    ax.set_xticklabels([str(i) for i in x_values])
-    ax.set_ylabel('Correlation (r-value)', labelpad=2)
-    ax.set_xlabel('Convolutional layer', labelpad=2)
-    ax.set_title('Correlation in Neuron Shapley Values Between Tasks Across Layers')
+    ax.xaxis.set_major_locator(plt.FixedLocator([1, 3, 5]))
+    # ax.set_xticklabels([str(i) for i in x_values if i % 2 == 1])  # Show only odd layers for clarity
+    ax.axhline(0, color='gray', linewidth=0.7, linestyle='-')
+    ax.set_ylabel('Correlation (r-value)', labelpad=2, fontsize=14)
+    ax.set_xlabel('Feature extraction layer', labelpad=1.5, fontsize=14)
+    ax.set_title('Correlation in Neuron Shapley Values Between Tasks Across Layers', fontsize=18)
 
     # add inset axes below x-axis
-    fig.subplots_adjust(bottom=0.3)
+    fig.subplots_adjust(bottom=0.35)
     for i, (x, y, r, layer, task_1, task_2) in enumerate(scatter_data):
         inset_width = 0.12
         inset_height = 0.18
         left = 0.13 + i * (0.83 / len(scatter_data))  # even horizontal spacing
-        bottom = 0.05
+        bottom = 0.08
 
         inset_ax = fig.add_axes([left, bottom, inset_width, inset_height])
-        inset_ax.scatter(x, y, alpha=0.7)
-        inset_ax.set_title(f'r = {r:.2f}', fontsize=8)
-        inset_ax.set_xlabel(f'{task_1}', fontsize=6, labelpad=1)
-        inset_ax.set_ylabel(f'{task_2}', fontsize=6, labelpad=1)
-        inset_ax.tick_params(axis='both', which='major', labelsize=6)
-
-    plt.savefig('vis/shap/layer_corr/combined_below_graph_2.png')
+        inset_ax.scatter(x, y, alpha=0.5, color='black')
+        # inset_ax.axvline(x=0, color='gray', linestyle='--', linewidth=1, zorder=0) # vertical line at x=0
+        inset_ax.set_title(f'r = {r:.2f}', fontsize=14)
+        if i == 0:
+            inset_ax.set_ylabel('Grasping', fontsize=14, labelpad=1)
+        if i == 2:
+            inset_ax.set_xlabel('Classification', fontsize=14, labelpad=1)
+        ax.yaxis.set_major_locator(plt.MaxNLocator(4))
+        inset_ax.tick_params(axis='x')
+        
+    plt.savefig('vis/shap/layer_corr/combined_below_graph.png')
 
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
@@ -473,15 +481,14 @@ if __name__ == '__main__':
     #                 np.abs(np.array(upper_bounds) - np.array(r_value))],
     #             fmt='o', capsize=5, linestyle='--')
 
-    # # Customize the plot
+    # Customize the plot
     # ax.set_xticks(x_values)
     # ax.set_xticklabels([f'{i}' for i in range(1, len(r_value) + 1)])
     # ax.set_ylabel('Correlation (r-value)')
     # ax.set_xlabel('Convolutional layer')
     # ax.set_title('Correlation in Neuron Shapley Values Between Tasks Across Layers')
-    # ax.legend()
-    # plt.savefig('vis/shap/layer_corr/all_layers_boot.png')
+    # plt.savefig('vis/shap/layer_corr/all_layers.png')
 
     plot_all_layer_scatter(players_dict, results_dict_by_layer, LAYERS)
 
-    
+
