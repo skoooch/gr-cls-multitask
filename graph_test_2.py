@@ -590,11 +590,11 @@ def visualize_graph():
 refine_graphs = True
 activity_graph = pickle.load(open('graphs/sim_weight_activity.pickle', 'rb'))
 weights_graph = pickle.load(open('graphs/just_weights.pickle', 'rb'))
-shapley_graph = pickle.load(open('graphs/shap_graph_unnormalized.pickle', 'rb'))
+shapley_graph = pickle.load(open('graphs/shap_graph_fix.pickle', 'rb'))
 dummy_graph = nx.DiGraph()
 edges = sorted(activity_graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
 for src, tgt, data in edges:
-    dummy_graph.add_edge(src, tgt, weight=0.5)  
+    dummy_graph.add_edge(src, tgt, weight=0.1)  
 if refine_graphs:
     activity_graph, shapley_graph, dummy_graph, weights_graph = get_refined_graphs([activity_graph, shapley_graph, dummy_graph, weights_graph], add_start = False, refinedness=7) 
 # visualize_graph_discrete()
@@ -611,17 +611,17 @@ if refine_graphs:
 # print(pearson_graph_similarity(dummy_graph, shapley_graph))
 method = "cosine"
 similarity = spectral_similarity(activity_graph, shapley_graph, method=method)
-print("Spectral Similarity:", similarity)
+print("Spectral Similarity between activity_graph, shapley_graph: ", similarity)
 similarity = spectral_similarity(activity_graph, weights_graph, method=method)
-print("Spectral Similarity:", similarity)
+print("Spectral Similarity between activity_graph, weights_graph: ", similarity)
 similarity = spectral_similarity(shapley_graph, weights_graph, method=method)
-print("Spectral Similarity:", similarity)
+print("Spectral Similarity between shapley_graph, weights_graph: ", similarity)
 similarity = spectral_similarity(dummy_graph, activity_graph, method=method)
-print("Spectral Similarity:", similarity)
+print("Spectral Similarity between dummy_graph, activity_graph: ", similarity)
 similarity = spectral_similarity(dummy_graph, weights_graph, method=method)
-print("Spectral Similarity:", similarity)
+print("Spectral Similarity between dummy_graph, weights_graph:", similarity)
 similarity = spectral_similarity(shapley_graph, dummy_graph, method=method)
-print("Spectral Similarity:", similarity)
+print("Spectral Similarity between shapley_graph, dummy_graph:", similarity)
 
 # Get spectra
 spec_activity = get_laplacian_spectrum(activity_graph)
