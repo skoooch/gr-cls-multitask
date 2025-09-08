@@ -4,6 +4,7 @@ import torch
 import torch.nn as nn
 import matplotlib.pylab as plt
 from tqdm import tqdm
+import itertools
 import rsatoolbox
 from process_data import get_data_matlab
 import sys
@@ -17,6 +18,8 @@ import numpy as np
 from shapley_analysis import confidence_interval
 from scipy import stats
 from scipy.stats import pearsonr, spearmanr
+
+
 def fisher_z_transform(r):
     """
     Applies the Fisher Z-transformation to a Pearson correlation coefficient.
@@ -68,8 +71,54 @@ def rsaceiling(b):
   upper = [rz(np.mean(b, axis=1), test) for _, test in splitter(b)]
   # return to correlation coefficient units after averaging
   return np.tanh(np.mean(lower)), np.tanh(np.mean(upper))
+desire_times = [(100, 200)]  
+#timepoints are identical across the files so this can stay the same
+tp_file = 'data/timepoints_8_cls.csv'
 
-
+timepoints = np.loadtxt(tp_file, delimiter=',')
+times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
+def biggest_diff():
+    participants = [i for i in range(1, 21) if i not in [2,10,13,17]]
+    metric = 0 #[upper, lower, mean]
+    combo_size = 6
+    mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}
+    label_order = [mapping[c] for c in ["A","B","C","D","E"]]
+    data = get_data_matlab("class",avr=False, left=True, single = -1)
+    participant_rdms_total = []
+    time_period = (np.where(timepoints == times[0][0])[0][0], np.where(timepoints == times[0][1])[0][0])
+    for p, p_data in enumerate(data):
+            activations_flat = []
+            points_per_object = {}
+            for cat in label_order:
+                points_per_object[cat] = 0
+                for object_data in data[p][cat]:
+                    relevant_signal = object_data[time_period[0]:time_period[1], :]
+                    activations_flat.append(relevant_signal.flatten())
+                    points_per_object[cat] += 1
+            act_array = np.asarray(activations_flat)
+            
+            result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
+            rsm_eeg_flat = result[np.triu_indices(result.shape[0], k=1)]
+            participant_rdms_total.append(rsm_eeg_flat)
+    participant_rdms_total = np.array(participant_rdms_total)
+    baseline = np.array(rsaceiling(participant_rdms_total.transpose()))
+    others = np.zeros([len(data) for i in range(combo_size)])      
+    for combo in itertools.combinations(range(len(data)), combo_size):
+        participant_rdms = []
+        for p, p_data in enumerate(data):
+            if p not in combo:
+                participant_rdms.append(participant_rdms_total[p])
+        participant_rdms = np.array(participant_rdms)
+        odd_out = rsaceiling(participant_rdms.transpose())
+        if metric == 0: others[combo] = (np.array(odd_out) - baseline)[1]
+        elif metric == 1: others[combo] = (np.array(odd_out) - baseline)[0]
+        else: others[combo] = np.mean((np.array(odd_out) - baseline))
+    ind = np.unravel_index(np.argmax(others), others.shape)
+    for index in ind:
+        print(participants[index])
+    print(others[ind])
+    exit()
+#biggest_diff()
 class MDS:
     """ Classical multidimensional scaling (MDS)
                                                                                                
@@ -304,45 +353,47 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
                 ## THIS IS WHERE THE CORRELATION between eeg and model IS CALCULATED
                 if corr_type=="kendall": participant_corrs.append(max(0,rsatoolbox.rdm.compare_kendall_tau(rsm_model_flat, rsm_eeg_flat)[0][0]))
                 elif corr_type == "pearson": participant_corrs.append(fisher_z_transform(max(0, pearsonr(rsm_model_flat, rsm_eeg_flat)[0])))
-                elif corr_type == "spearman": participant_corrs.append(max(0,rsatoolbox.rdm.compare_rho_a(rsm_model_flat, rsm_eeg_flat)[0][0]))
+                elif corr_type == "spearman": participant_corrs.append(max(0, rsatoolbox.rdm.compare_rho_a(rsm_model_flat, rsm_eeg_flat)[0][0]))
             corrs[i].append((participant_corrs))
 
     # Plot for each time period
     corrs = np.array(corrs)
     N = len(corrs)
     ind = np.arange(N)  
-    width = 0.13
-    plt.figure()
+    width = 0.13 #0.15 width of the bars
+    plt.figure(figsize=(20, 6))
+
     bars = []
     n = 325
     for i in range(5):   
         vals = corrs[:, i, :]
-        
-        yerr = scipy.stats.sem(vals, axis=-1)
+        yerr = scipy.stats.sem(vals, axis=-1) / noise_ceilings[i][1]
         if corr_type=="pearson": final_vals = inverse_fisher_z_transform(vals.mean(axis=-1))
-        else: final_vals =vals.mean(axis=-1)
+        else: final_vals = vals.mean(axis=-1)
+        for j, val in enumerate(final_vals):
+            final_vals[j] = val / noise_ceilings[j][1]
         if task == "grasp":
             bar = plt.bar(ind + width*i, final_vals, width, color = (0.2, 0.2, 1, 1- 0.15*i),  yerr=yerr,error_kw=dict(lw=0.5, capsize=1, capthick=0.5)) 
         else:
             bar = plt.bar(ind + width*i, final_vals,  width, color = (1, 0.2, 0.2, 1- 0.15*i), yerr=yerr,error_kw=dict(lw=0.5, capsize=1, capthick=0.5))
         bars.append(bar)
         # Draw noise ceiling as a gray block above the bars for each time point
-        for i in range(N):
-            lower, upper = noise_ceilings[i]
-            # The block should span the width of all 5 bars for this timepoint
-            left = ind[i] - width * 0.5
-            right = ind[i] + width * 5 - width * 0.5
-            plt.gca().add_patch(
-            plt.Rectangle(
-                (left, lower),   # (x, y) of lower left
-                right - left,    # width
-                upper - lower,   # height
-                color='gray',
-                alpha=0.3,
-                zorder=0,
-                label='Noise Ceiling' if i == 0 else None
-            )
-            )
+        # for i in range(N):
+        #     lower, upper = noise_ceilings[i]
+        #     # The block should span the width of all 5 bars for this timepoint
+        #     left = ind[i] - width * 0.5
+        #     right = ind[i] + width * 5 - width * 0.5
+        #     plt.gca().add_patch(
+        #     plt.Rectangle(
+        #         (left, lower),   # (x, y) of lower left
+        #         right - left,    # width
+        #         upper - lower,   # height
+        #         color='gray',
+        #         alpha=0.3,
+        #         zorder=0,
+        #         label='Noise Ceiling' if i == 0 else None
+        #     )
+        #     )
     ticks = [f'{desire_times[i][0]}-{desire_times[i][1]}' for i in range(len(desire_times))]
     plt.xticks(ind+width, ticks, fontsize=9)
     plt.legend(bars, ('1st Layer', '2nd Layer', '3rd Layer', '4th Layer', '5th Layer') ) 
@@ -355,24 +406,20 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     elif corr_type=="pearson": plt.ylabel("Pearson Correlation (r-value)")
     elif corr_type=="spearman": plt.ylabel("Spearman's Rho")
     ax = plt.gca()
-    ax.set_ylim([-0.1, 0.3])
+    # ax.set_ylim([-0.1, 0.3])
     plt.axhline(y=0, color='black', linestyle='-')
     plt.figtext(0.1, 0.01, "*: p-value < 0.05", ha="center", fontsize=10)
-    plt.savefig("vis/rsm_correlation_1/%s_%s_%s_%s" % (task, name_suffix, single, corr_type), dpi=300)
+    plt.savefig("vis/rsm_correlation_1/%s_%s_%s" % (task, name_suffix, corr_type), dpi=300)
+
 suffix = sys.argv[1]
 corr_type = sys.argv[2]
 
-desire_times = [(0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 300)]  
-#timepoints are identical across the files so this can stay the same
-tp_file = 'data/timepoints_8_cls.csv'
 
-timepoints = np.loadtxt(tp_file, delimiter=',')
-times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
 # time_eeg_rsm(task)
 # exit()
 
 try: 
-    model_path = sys.argv[4]
+    model_path = sys.argv[3]
 except:
     model_path = ""
 # for i in range(1,21):
@@ -384,6 +431,7 @@ for task in ["grasp", "class"]:
     #desire_times = [(0, 75), (75, 150),(150, 225),(225, 300), (300, 375)] 
     #desire_times = [(-25,0),(0, 25),(25,50), (50, 75),(75,100),(100, 125),(125,150),(150, 175),(175,200), (200,225),(225,250),(250,275),(275,300), (300,325), (325,350), (350,375),(375,398)]
     desire_times = [(-50,0), (0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 300), (300,350), (350, 398) ]  
+    #desire_times = [(-25,0),(0, 25),(25,50), (50, 75),(75,100),(100, 125),(125,150),(150, 175),(175,200), (200,225),(225,250),(250,275),(275,300), (300,325), (325,350), (350,375),(375,400)]
     #timepoints are identical across the files so this can stay the same
     tp_file = 'data/timepoints_8_cls.csv'
     timepoints = np.loadtxt(tp_file, delimiter=',') 
