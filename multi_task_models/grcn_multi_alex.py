@@ -145,14 +145,14 @@ class Multi_AlexnetMap_v3(nn.Module):
         # else:
         # ---------------------------------------------------------------------------------
         rgb = self.rgb_features[0](rgb)
-        if dissociate != []:
-            mask_idx = torch.zeros(rgb.shape[1], dtype=torch.bool).to(x.device)
-            mask_idx[dissociate[0]] = True
-            rgb[:,mask_idx,:,:] = 0
         rgb = self.rgb_features[1](rgb)
         rgb = self.rgb_features[2](rgb)
         d = self.d_features(d)
         x = torch.cat((rgb, d), dim=1)
+        if dissociate != []:
+            mask_idx = torch.zeros(x.shape[1], dtype=torch.bool).to(x.device)
+            mask_idx[dissociate[0]] = True
+            x[:,mask_idx,:,:] = 0
         if shap_mask != []:
             shap_mask_idx = shap_mask.bool()  # Convert to a boolean mask for indexing
             # Broadcast activations to match the shape of the output
@@ -183,9 +183,7 @@ class Multi_AlexnetMap_v3(nn.Module):
                 x = features_conv_out
             x = self.features[11:](x)
         else:
-            for i in range(len(self.features)):
-                x = self.features[i](x)
-            # x = self.features(x)
+            x = self.features(x)
         if is_grasp:
             out = self.grasp(x)
             confidence = self.grasp_confidence(x)

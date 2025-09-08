@@ -1,8 +1,12 @@
+from math import nan
+import math
+from cv2 import norm
 import torch
 import os
 import time
 import sys
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 from utils.parameters import Params
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from training.single_task.evaluation import get_cls_acc, get_grasp_acc, denormalize_grasp, map2singlegrasp
@@ -68,37 +72,62 @@ weights_path = os.path.join(weights_dir, model_name, model_name + '_final.pth')
 model =  Multi_AlexnetMap_v3().to('cuda')
 model.load_state_dict(torch.load(weights_path))
 model.eval()
-path = params.TEST_PATH
-if len(sys.argv) > 1:
-    path = params.TEST_PATH_SHUFFLE
-    
+path = params.TEST_PATH   
     
 ###-------- Change these values for different layer and anaysis -----------
-diff = True
-layer = 1
-load_data = False
+diff = False
+
+layer = int(0 if len(sys.argv) < 2 else sys.argv[1])
+load_data = True
+half = True
+normalize_accuracies = True
 ### ------------------------------
 
-if diff: top = torch.tensor(np.load("shap_arrays/sort_shap_indices_diff_normalized.npy"), dtype=int)
-else: top = torch.tensor(np.load("shap_arrays/sort_shap_indices.npy"), dtype=int)
+if diff: top = torch.tensor(np.load("shap_arrays/sort_shap_indices_diff_depth.npy"), dtype=int)
+else: top = torch.tensor(np.load("shap_arrays/sort_shap_indices_depth.npy"), dtype=int)
+data_length = [128,32,64,64,64][layer]
+if half: data_length = data_length // 2
 
-data_length = 32
 
 if not load_data:
-    data = np.zeros((data_length, 2, 2,400), np.float16)
+    
+    data = np.zeros((data_length, 2, 2, 400), np.float16)
     for lesion_i in range(data_length):
         for i in range(2):
             dissociate = top[:,:lesion_i,i]
             dissociate[:layer, :] = 0
             dissociate[layer + 1:, :] = 0
-            # Get test acc for CLS model
+            # Get test acc for CLS model            
             data[lesion_i, i, 0] = get_cls_dist(model, include_depth=True, seed=None, dataset=path, truncation=None, dissociate=dissociate)
             data[lesion_i, i, 1] = get_grasp_dist(model, include_depth=True, seed=None, dataset=path, truncation=None, dissociate=dissociate)
-    np.save(f'layer_{layer}_data.npy', data)
+            
+    if not diff: np.save(f'dissociation_accuracies/layer_{layer}_data.npy', data)
+    else: np.save(f'dissociation_accuracies/diff_layer_{layer}_data.npy', data)
 else:
-    data = np.load(f'layer_{layer}_data.npy')
+    if not diff: data = np.load(f'dissociation_accuracies/layer_{layer}_data.npy')
+    else: data = np.load(f'dissociation_accuracies/diff_layer_{layer}_data.npy')
+    if normalize_accuracies:
+        accuracies = np.mean(data, axis=-1)
+        # Normalize accuracies for each task separately (across lesion indices)
+        normalized_accuracies = np.zeros_like(accuracies)
+        for task_idx in range(2):
+            task_acc = accuracies[:, :, task_idx]  # shape: (data_length, 2)
+            min_acc = np.min(task_acc)
+            max_acc = np.max(task_acc)
+            # Avoid division by zero
+            if max_acc - min_acc != 0:
+                normalized_accuracies[:, :, task_idx] = (task_acc - min_acc) / (max_acc - min_acc)
+            else:
+                normalized_accuracies[:, :, task_idx] = 0
+        fake_data = np.zeros_like(data)
+        for lesion_i in range(fake_data.shape[0]):
+            for i in range(2):
+                for j in range(2):
+                    num_correct = int(normalized_accuracies[lesion_i, i, j] * 400)
+                    fake_data[lesion_i, i, j, :num_correct] = 1
 # Plot the data array as two separate plots
-x = range(data.shape[0])
+data_lenth = int(data_length)
+x = range(data_length)
 
 #### T CURVES ###########3
 
@@ -106,33 +135,41 @@ x = range(data.shape[0])
 # ...existing code for data generation...
 
 # Calculate t-values for each curve compared to the baseline (lesion_i=0)
-t_values = np.zeros_like(data)
+t_values = np.zeros((data_length, 2,2))
 baseline = [85, 81.5]
 
 for lesion_i in range(data_length):
     for i in range(2):  # 0: class kernels, 1: grasp kernels
         for j in range(2):  # 0: classification accuracy, 1: grasp accuracy
             # t-test: compare current accuracy to baseline
-            t_stat, _ = stats.ttest_1samp(data[lesion_i, i, j], baseline[j], alternative="less")
-            t_values[lesion_i, i, j] = t_stat**2
-
+            t_stat, _ = stats.ttest_1samp(data[lesion_i, i, j], baseline[j], alternative="greater")
+            t_values[lesion_i, i, j] = -t_stat
+            if i == 0 and j == 1 and -t_stat == np.inf: 
+                print(data[lesion_i, i, j])
+                
+font_manager._load_fontmanager(try_read_cache=False)
+font_path = 'ARIAL.TTF'  # Replace with the actual path
+font_entry = font_manager.FontEntry(fname=font_path, name='MyCustomFontName')
+font_manager.fontManager.ttflist.insert(0, font_entry) # Add to the beginning of the list
+plt.rcParams['font.family'] = ['MyCustomFontName'] # Set as default
 # Plot t-value curves
 plt.figure(figsize=(10, 8))
-plt.plot(x, t_values[:, 0, 0], label='T-value: Classification (CLS Kernels)', linestyle='--', color='red')
-plt.plot(x, t_values[:, 0, 1], label='T-value: Grasp (CLS Kernels)', linestyle='-', color='blue')
-plt.plot(x, t_values[:, 1, 0], label='T-value: Classification (Grasp Kernels)', linestyle='-', color='red')
-plt.plot(x, t_values[:, 1, 1], label='T-value: Grasp (Grasp Kernels)', linestyle='--', color='blue')
+plt.plot(x, t_values[:, 0, 0], label='T-value: Classification (Classification Kernels)', linestyle='-', color='red')
+plt.plot(x, t_values[:, 0, 1], label='T-value: Classification (Grasp Kernels)', linestyle='--', color='red')
+plt.plot(x, t_values[:, 1, 0], label='T-value: Grasp (Grasp Kernels)', linestyle='-', color='blue')
+plt.plot(x, t_values[:, 1, 1], label='T-value: Grasp (Classification Kernels)', linestyle='--', color='blue')
+plt.axhline(y=2.58, color='black', linestyle='dotted', label='Significance threshold (t, p=0.01)')
 plt.title(f'T-value Curves for Lesioning (Layer {layer + 1})')
 plt.xlabel('Lesion Index')
-plt.ylabel('T^2-value')
+plt.ylabel('T-value')
 handles, labels = plt.gca().get_legend_handles_labels()
 by_label = dict(zip(labels, handles))
 plt.legend(by_label.values(), by_label.keys())
 plt.tight_layout()
 if diff:
-    plt.savefig(f'vis/lesion/tvalue_curves_diff_normalized_layer_{layer}.png', dpi=300)
+    plt.savefig(f'vis/lesion/diff_tvalue_curves_layer_{layer}{'_half' if half else ''}{'_normal' if normalize_accuracies else ''}.png', dpi=300)
 else:
-    plt.savefig(f'vis/lesion/tvalue_curves_layer_{layer}.png', dpi=300)
+    plt.savefig(f'vis/lesion/tvalue_curves_layer_{layer}{'_half' if half else ''}{'_normal' if normalize_accuracies else ''}.png', dpi=300)
 plt.close()
 
 anova_f_values = []
@@ -175,9 +212,9 @@ plt.ylabel('F-value')
 plt.legend()
 plt.tight_layout()
 if diff:
-    plt.savefig(f'vis/lesion/fvalue_curve_diff_normalized_layer_{layer}.png', dpi=300)
+    plt.savefig(f'vis/lesion/fvalue_curve_diff_normalized_layer_{layer}{'_half' if half else ''}{'_normal' if normalize_accuracies else ''}.png', dpi=300)
 else:
-    plt.savefig(f'vis/lesion/fvalue_curve_layer_{layer}.png', dpi=300)
+    plt.savefig(f'vis/lesion/fvalue_curve_layer_{layer}{'_half' if half else ''}{'_normal' if normalize_accuracies else ''}.png', dpi=300)
 plt.close()
 ### ACCURACY CURVES ########
 

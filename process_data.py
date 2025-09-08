@@ -2,7 +2,7 @@ from os import remove
 import numpy as np
 from scipy.signal import butter, sosfilt, filtfilt
 import scipy.io
-
+import h5py
 """
 This script calculates the RSMs for the EEG data.
 
@@ -43,24 +43,29 @@ def get_data(task, avr=False):
             all_data[category].append(averaged_trials)
     return all_data
 
-def get_data_matlab(task,avr=True, left = False):
+def get_data_matlab(task,avr=True, left = False, single=-1, bad_participants =[]):
     categories = ['figurine', 'pen', 'chair', 'lamp', 'plant']
     dataset = []
-    if task == "grasp":
-        removed_participants = [2,11,7,3,10,12,13] # add more participants as needed
-        # removed_participants = [2,10,12,13]
+    print(bad_participants)
+    if task != "grasp":
+        removed_participants = [2,10,13,17, 16,] + bad_participants # add more participants as needed
+        # removed_participants = [2,10,12,13]3,5,7,8,4,9 ||  16, 14, 20,1
     else:
-        removed_participants = [1,10,12,13, 16]
-        #removed_participants = [1,2,11,7,3,10,12,13]
+        removed_participants = [2,10,13,17] + bad_participants
+        #removed_participants = [1,2,11,7,3,10,12,13]4,5,7,8,9,11 || 18, 19, 6, 7
     all_data = {}
     if not avr:
         all_data = []
-        
-    for i in range(1,17):
-        if i not in removed_participants:
-            mat = scipy.io.loadmat(f'matlab_files/{task}_erps/kirtan_exp_{i}_{task}.mat')
-            dataset.append(mat)
-            if not avr: all_data.append({})
+    if single < 0:    
+        for i in range(1,21):
+            if i not in removed_participants:
+                mat = scipy.io.loadmat(f'matlab_files/{task}_erps/kirtan_exp_{i}_{task}.mat')
+
+                dataset.append(mat)
+                if not avr: all_data.append({})
+    else:
+        mat = scipy.io.loadmat(f'matlab_files/{task}_erps/kirtan_exp_{single}_{task}.mat')
+        dataset.append(mat)
     if avr:
         for category in categories:
             all_data[category] = []
@@ -83,7 +88,8 @@ def get_data_matlab(task,avr=True, left = False):
                 summed = concat_begin.sum(axis=0)/len(object_to_average_over_exp)
                 # 20:33 + 56: is all the back
                 
-                if not left: summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
+                #if not left: summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
+                if not left: summed = np.concatenate((summed[:, 25:31], summed[:, 62:]), axis=1)
                 else: summed = summed[:, 20:33]
                 assert(summed.shape[0] == 307)
                 all_data[category].append(summed)
