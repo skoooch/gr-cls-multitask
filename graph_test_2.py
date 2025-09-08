@@ -16,6 +16,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 layers = ['rgb_features.0', 'features.0','features.4','features.7','features.10']
@@ -587,17 +588,17 @@ def visualize_graph():
     
     
 refine_graphs = True
-
-activity_graph = pickle.load(open('graphs/just_weights.pickle', 'rb'))
-shapley_graph = pickle.load(open('graphs/shap_graph_fix.pickle', 'rb'))
+activity_graph = pickle.load(open('graphs/sim_weight_activity.pickle', 'rb'))
+weights_graph = pickle.load(open('graphs/just_weights.pickle', 'rb'))
+shapley_graph = pickle.load(open('graphs/shap_graph_unnormalized.pickle', 'rb'))
 dummy_graph = nx.DiGraph()
 edges = sorted(activity_graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
 for src, tgt, data in edges:
-    dummy_graph.add_edge(src, tgt, weight=10)  
+    dummy_graph.add_edge(src, tgt, weight=0.5)  
 if refine_graphs:
-    activity_graph, shapley_graph, dummy_graph = get_refined_graphs([activity_graph, shapley_graph, dummy_graph], add_start = False, refinedness=10) 
-visualize_graph_discrete()
-exit()
+    activity_graph, shapley_graph, dummy_graph, weights_graph = get_refined_graphs([activity_graph, shapley_graph, dummy_graph, weights_graph], add_start = False, refinedness=7) 
+# visualize_graph_discrete()
+# exit()
 # print_edges(activity_graph)
 # print("---------------------------------")
 # print_edges(shapley_graph)
@@ -605,18 +606,57 @@ exit()
 # print(weighted_graph_similarity_cosine(dummy_graph, activity_graph))
 # print(weighted_graph_similarity_cosine(dummy_graph, shapley_graph))
 
-print(pearson_graph_similarity(activity_graph, shapley_graph))
+#print(pearson_graph_similarity(activity_graph, shapley_graph))
 # print(pearson_graph_similarity(dummy_graph, activity_graph))
 # print(pearson_graph_similarity(dummy_graph, shapley_graph))
+method = "cosine"
+similarity = spectral_similarity(activity_graph, shapley_graph, method=method)
+print("Spectral Similarity:", similarity)
+similarity = spectral_similarity(activity_graph, weights_graph, method=method)
+print("Spectral Similarity:", similarity)
+similarity = spectral_similarity(shapley_graph, weights_graph, method=method)
+print("Spectral Similarity:", similarity)
+similarity = spectral_similarity(dummy_graph, activity_graph, method=method)
+print("Spectral Similarity:", similarity)
+similarity = spectral_similarity(dummy_graph, weights_graph, method=method)
+print("Spectral Similarity:", similarity)
+similarity = spectral_similarity(shapley_graph, dummy_graph, method=method)
+print("Spectral Similarity:", similarity)
 
-# similarity = spectral_similarity(activity_graph, shapley_graph, method='cosine')
-# print("Spectral Similarity:", similarity)
-# similarity = spectral_similarity(dummy_graph, activity_graph, method='cosine')
-# print("Spectral Similarity:", similarity)
-# similarity = spectral_similarity(shapley_graph, dummy_graph, method='cosine')
-# print("Spectral Similarity:", similarity)
-exit()
+# Get spectra
+spec_activity = get_laplacian_spectrum(activity_graph)
+spec_shapley = get_laplacian_spectrum(shapley_graph)
+spec_weights = get_laplacian_spectrum(weights_graph)
+spec_dummy = get_laplacian_spectrum(dummy_graph)
 
+# Plot spectra
+plt.figure(figsize=(10, 6))
+plt.plot(spec_activity, label='Activity Graph', marker='o')
+plt.plot(spec_shapley, label='Shapley Graph', marker='o')
+plt.plot(spec_weights, label='Weights Graph', marker='o')
+plt.plot(spec_dummy, label='Dummy Graph', marker='o')
+plt.xlabel('Eigenvalue Index')
+plt.ylabel('Laplacian Eigenvalue')
+plt.title('Graph Laplacian Spectra Comparison')
+plt.legend()
+plt.tight_layout()
+plt.savefig('vis/graph_inspect/graph_spectra_comparison.png', dpi=300)
+plt.close()
+def plot_edge_weight_hist(graph, name, bins=30):
+    weights = [abs(data['weight']) for _, _, data in graph.edges(data=True)]
+    plt.figure(figsize=(6, 4))
+    plt.hist(weights, bins=bins, color='skyblue', edgecolor='black')
+    plt.title(f'Edge Weight Distribution: {name}')
+    plt.xlabel('Edge Weight')
+    plt.ylabel('Count')
+    plt.tight_layout()
+    plt.savefig(f'vis/graph_inspect/edge_weight_hist_{name}.png', dpi=200)
+    plt.close()
+
+plot_edge_weight_hist(activity_graph, "activity")
+plot_edge_weight_hist(shapley_graph, "shapley")
+plot_edge_weight_hist(weights_graph, "weights")
+plot_edge_weight_hist(dummy_graph, "dummy")
 # edges = sorted(G.edges(data=True), key=lambda x: -abs(x[2]['weight']))
 # for src, tgt, data in edges[:20]:
 #     print(f"{src} → {tgt}, weight = {data['weight']:.4f}")
