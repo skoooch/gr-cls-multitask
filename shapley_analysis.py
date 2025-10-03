@@ -376,7 +376,6 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
     ax.errorbar(x_values, r_values, 
                 yerr=[np.abs(np.array(r_values) - np.array(lower_bounds)), 
                       np.abs(np.array(upper_bounds) - np.array(r_values))],
-                fmt='o', capsize=5, linestyle='--', color='black')
                 fmt='o', capsize=5, linestyle='--', color="black")
 
     ax.set_xticks(x_values)
