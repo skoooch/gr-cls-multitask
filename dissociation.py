@@ -81,6 +81,7 @@ layer = int(0 if len(sys.argv) < 2 else sys.argv[1])
 load_data = True
 half = True
 normalize_accuracies = True
+inverse_coloring = True
 ### ------------------------------
 
 if diff: top = torch.tensor(np.load("shap_arrays/sort_shap_indices_diff_depth.npy"), dtype=int)
@@ -155,9 +156,9 @@ plt.rcParams['font.family'] = ['MyCustomFontName'] # Set as default
 # Plot t-value curves
 plt.figure(figsize=(10, 8))
 plt.plot(x, t_values[:, 0, 0], label='T-value: Classification (Classification Kernels)', linestyle='-', color='red')
-plt.plot(x, t_values[:, 0, 1], label='T-value: Classification (Grasp Kernels)', linestyle='--', color='red')
+plt.plot(x, t_values[:, 0, 1], label='T-value: Classification (Grasp Kernels)', linestyle='--', color='blue' if inverse_coloring else 'red')
 plt.plot(x, t_values[:, 1, 0], label='T-value: Grasp (Grasp Kernels)', linestyle='-', color='blue')
-plt.plot(x, t_values[:, 1, 1], label='T-value: Grasp (Classification Kernels)', linestyle='--', color='blue')
+plt.plot(x, t_values[:, 1, 1], label='T-value: Grasp (Classification Kernels)', linestyle='--', color='blue' if not inverse_coloring else 'red')
 plt.axhline(y=2.58, color='black', linestyle='dotted', label='Significance threshold (t, p=0.01)')
 plt.title(f'T-value Curves for Lesioning (Layer {layer + 1})')
 plt.xlabel('Lesion Index')
@@ -167,11 +168,12 @@ by_label = dict(zip(labels, handles))
 plt.legend(by_label.values(), by_label.keys())
 plt.tight_layout()
 if diff:
-    plt.savefig(f'vis/lesion/diff_tvalue_curves_layer_{layer}{'_half' if half else ''}{'_normal' if normalize_accuracies else ''}.png', dpi=300)
+    plt.savefig(f'vis/lesion/{'inverse_coloring/' if inverse_coloring else ''}diff_tvalue_curves_layer_{layer}{'_half' if half else ''}{'_normal' if normalize_accuracies else ''}.png', dpi=300)
 else:
-    plt.savefig(f'vis/lesion/tvalue_curves_layer_{layer}{'_half' if half else ''}{'_normal' if normalize_accuracies else ''}.png', dpi=300)
+    plt.savefig(f'vis/lesion/{'inverse_coloring/' if inverse_coloring else ''}tvalue_curves_layer_{layer}{'_half' if half else ''}{'_normal' if normalize_accuracies else ''}.png', dpi=300)
 plt.close()
-
+if inverse_coloring:
+    exit()
 anova_f_values = []
 for lesion_i in range(data_length):
     # Prepare data for ANOVA: 4 measurements (task × lesion type)
@@ -216,6 +218,7 @@ if diff:
 else:
     plt.savefig(f'vis/lesion/fvalue_curve_layer_{layer}{'_half' if half else ''}{'_normal' if normalize_accuracies else ''}.png', dpi=300)
 plt.close()
+
 ### ACCURACY CURVES ########
 
 # # Third plot: Combined plot with all data
