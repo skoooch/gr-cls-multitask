@@ -1,0 +1,62 @@
+Chi-square Weighted specialization analysis
+Timestamp: 2025-10-03 13:14:15
+Graph path: graphs/just_weights3.pickle
+Refinedness: 32
+Counts on: base
+Methods run: topk_each, z_ratio, effect, mixture
+----------------------------------------------------------------------
+
+Method: topk_each
+top_k = 20
+Description: Per layer pick top-k kernels by SHAP for each task; overlaps (in both top-k) become no_pref. Simple rank-based selectivity.
+Chi-square=13.899, dof=3, p=0.003045
+Logistic trend: slope=0.8157, p=4.439e-46
+Transition	Spec	Other	Prop_spec	Exp_spec	Exp_other
+rgb_features.0->features.0	6.551105737686157	217.73333400022238	0.029	13.85	210.44
+features.0->features.4	5.213693454861641	201.8276127167046	0.025	12.78	194.26
+features.4->features.7	33.14149661920965	394.63145544938743	0.077	26.41	401.36
+features.7->features.10	30.213329872116446	327.33670066297054	0.085	22.08	335.47
+
+----------------------------------------------------------------------
+
+Method: z_ratio
+z_thresh=0.5,
+cross_max=0.,
+ratio_high=0.6,
+ratio_low=0.4,
+Description: Requires high z-score for one task, low for the other, plus dominance ratio threshold; combines magnitude and relative emphasis.
+Chi-square=11.618, dof=3, p=0.008811
+Logistic trend: slope=1.0004, p=1.152e-16
+Transition	Spec	Other	Prop_spec	Exp_spec	Exp_other
+rgb_features.0->features.0	0	224.28443973790854	0.000	3.02	221.26
+features.0->features.4	0.5935167260468006	206.44778944551945	0.003	2.79	204.25
+features.4->features.7	5.304495554417372	422.4684565141797	0.012	5.76	422.01
+features.7->features.10	10.485276956111193	347.0647535789758	0.029	4.81	352.74
+
+----------------------------------------------------------------------
+
+Method: effect
+effect_thresh=0.15,
+Description: Uses normalized difference (effect size style); assigns if |(c-g)/( |c|+|g| )| exceeds threshold; otherwise no_pref.
+Chi-square=13.342, dof=3, p=0.003952
+Logistic trend: slope=0.1496, p=2.669e-05
+Transition	Spec	Other	Prop_spec	Exp_spec	Exp_other
+rgb_features.0->features.0	75.71887982357293	148.5655599143356	0.338	87.46	136.82
+features.0->features.4	64.69242581352592	142.34888035804033	0.312	80.74	126.30
+features.4->features.7	173.9069541208446	253.86599794775248	0.407	166.81	260.96
+features.7->features.10	160.12684835121036	197.42318218387663	0.448	139.43	218.12
+
+----------------------------------------------------------------------
+
+Method: mixture
+Description: Fits 3-component Gaussian Mixture to (class−grasp) differences; extreme components => specialized, middle => no_pref.
+Chi-square=117.770, dof=3, p=2.331e-25
+Logistic trend: slope=1.0057, p=2.775e-43
+Transition	Spec	Other	Prop_spec	Exp_spec	Exp_other
+rgb_features.0->features.0	3.017958551645279	221.26648118626326	0.013	16.54	207.75
+features.0->features.4	13.137651408091187	193.90365476347506	0.063	15.27	191.78
+features.4->features.7	3.4191384967416525	424.3538135718554	0.008	31.54	396.23
+features.7->features.10	70.13125865440816	287.41877188067883	0.196	26.36	331.19
+
+----------------------------------------------------------------------
+
