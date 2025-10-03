@@ -353,7 +353,6 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
                 counts += np.sum(mem_tmc != -1, 0)
             counts = np.clip(counts, 1e-12, None)
             vals[task] = sums / (counts + 1e-12)
-
         task_1, task_2 = list(vals.keys())
         x = vals[task_1]
         y = vals[task_2]
@@ -375,7 +374,7 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
     ax.errorbar(x_values, r_values, 
                 yerr=[np.abs(np.array(r_values) - np.array(lower_bounds)), 
                       np.abs(np.array(upper_bounds) - np.array(r_values))],
-                fmt='o', capsize=5, linestyle='--')
+                fmt='o', capsize=5, linestyle='--', color="black")
 
     ax.set_xticks(x_values)
     ax.set_xticklabels([str(i) for i in x_values])
@@ -392,13 +391,13 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
         bottom = 0.05
 
         inset_ax = fig.add_axes([left, bottom, inset_width, inset_height])
-        inset_ax.scatter(x, y, alpha=0.7)
+        inset_ax.scatter(x, y, alpha=0.7, color="black")
         inset_ax.set_title(f'r = {r:.2f}', fontsize=8)
         inset_ax.set_xlabel(f'{task_1}', fontsize=6, labelpad=1)
         inset_ax.set_ylabel(f'{task_2}', fontsize=6, labelpad=1)
         inset_ax.tick_params(axis='both', which='major', labelsize=6)
 
-    plt.savefig('vis/shap/layer_corr/combined_below_graph_2.png')
+    plt.savefig('vis/shap/layer_corr/combined_below_graph_black.png', dpi=300)
 
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
