@@ -228,7 +228,8 @@ mem_tmc, idxs_tmc = instantiate_tmab_logs(players, log_dir)
 ## Running CB-Shapley
 #c = {i: np.array([i]) for i in range(len(players))}
 c = {i: i for i in range(len(players))}
-
+print(c)
+exit()
 counter = 0
 while True:
     ## Load the list of players (filters) that are determined to be not confident enough
