@@ -49,12 +49,12 @@ def get_feature_activations(model, images, labels, layer_i=0, top = None,j=1, to
         x = torch.cat((rgb, d), dim=1)
         next = model.features[:layer_i](x)
         if j == 1:
-            if top:
+            if not top == None:
                 activations[label].append(next[:,top[j, :top_size//2,is_grasp],:,:])
             else:
                 activations[label].append(next[:,:,:,:])
         else:
-            if top:
+            if not top == None:
                 activations[label].append(next[:,top[j, :,is_grasp],:,:])
             else:
                 activations[label].append(next[:,:,:,:])
@@ -128,8 +128,8 @@ def get_rgb_activations(model, images, labels, depth=False, top = None, is_grasp
                 activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,:,:,:], model.d_features[0](d)), dim=1)
             activations[label].append(activation)
         else:
-            if top:
-                activations[label].append(model.rgb_features[0](img[:, :3, :, :])[:,top[0, :,is_grasp],:,:])
+            if not top == None:
+                activations[label].append(model.rgb_features[0](img[:, :3, :, :])[:,top[0, :6,is_grasp],:,:])
             else:
                 print(model.rgb_features[0](img[:, :3, :, :]).shape)
                 activations[label].append(model.rgb_features[0](img[:, :3, :, :])[:,:,:,:])
@@ -234,7 +234,7 @@ data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_S
 labels = ['A', 'B', 'C', 'D', 'E']
 labels_repeated = np.repeat(labels, 5)
 is_grasp = True
-rgb = get_rgb_activations(model, images, labels, depth=True)
+#rgb = get_rgb_activations(model, images, labels, depth=True)
 # j=0
 # for i in [1, 5, 8, 11]:
 #     j += 1
@@ -247,21 +247,21 @@ rgb = get_rgb_activations(model, images, labels, depth=True)
 # print(np.load("saved_model_rsms/rgb.npy").shape)
 # visualize_rsm(squareform(pdist(rgb, metric="correlation")), title=f"Second Convolutional Layer RDM", is_grasp = is_grasp)
 # exit()
-# selected_kernels = torch.tensor(np.load("shap_arrays/smallest20.npy"), dtype=int).to("cuda")
-# rsm_folder = "smallest20"
+is_grasp = 0
+rsm_folder = "sort_shap_indices"
+selected_kernels = torch.tensor(np.load(f"shap_arrays/{rsm_folder}.npy"), dtype=int).to("cuda")
 
-
-act_array = get_rgb_activations(model, images, labels,depth=True)
+act_array = get_rgb_activations(model, images, labels,depth=False,top=selected_kernels, is_grasp=is_grasp)
 result = squareform(pdist(act_array, metric="correlation"))
-np.save(f"saved_model_rsms/depth/0.npy", result)
+print(result.mean())
+np.save(f"saved_model_rsms/{"grasp" if is_grasp else "class"}/{rsm_folder}/0.npy", result)
 
 j = 0
 for i in [1, 5, 8, 11]:
     j += 1
-    
-    act_array = get_feature_activations(model, images, labels, layer_i=i, j=j)
+    act_array = get_feature_activations(model, images, labels, layer_i=i, j=j,top=selected_kernels, top_size=6,is_grasp=is_grasp)
     result = squareform(pdist(act_array, metric="correlation"))
-    np.save(f"saved_model_rsms/depth/{j}.npy", result)
+    np.save(f"saved_model_rsms/{"grasp" if is_grasp else "class"}/{rsm_folder}/{j}.npy", result)
     
 exit() # remove this if you want to do the visualization
 

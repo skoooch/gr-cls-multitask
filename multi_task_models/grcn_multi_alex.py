@@ -61,8 +61,6 @@ class Multi_AlexnetMap_v3(nn.Module):
             #nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
             nn.Dropout(0.3),
-            
-            
         )
         self.grasp = nn.Sequential(
             nn.ConvTranspose2d(64, 32, kernel_size=3, stride=2),
@@ -124,8 +122,8 @@ class Multi_AlexnetMap_v3(nn.Module):
         for m in self.grasp_confidence.modules():
             if isinstance(m, (nn.ConvTranspose2d)):
                 nn.init.xavier_uniform_(m.weight, gain=1)
-
-    def forward(self, x, is_grasp=True, shap_mask=[], activations=[], dissociate=[]):
+    
+    def forward(self, x, is_grasp=True, shap_mask=[], activations=[], dissociate=[], connect = False):
         rgb = x[:, :3, :, :]
         d = torch.unsqueeze(x[:, 3, :, :], dim=1)
         d = torch.cat((d, d, d), dim=1)
@@ -203,3 +201,27 @@ class Multi_AlexnetMap_v3(nn.Module):
         
         for param in self.d_features.parameters():
             param.requires_grad = True
+            
+    def forward_with_connection_mask(self, x, connection_mask, avg_conn_activations, layer_i):
+        # x: [batch, in_channels, H, W]
+        W = self.features[layer_i].weight  # [out_channels, in_channels, kH, kW]
+        b = self.features[layer_i].bias
+
+        # Standard convolution
+        conv_out = self.features[layer_i](x)
+
+        # Replace masked connections with average activation
+        for tgt in range(W.shape[0]):
+            for src in range(W.shape[1]):
+                if connection_mask[tgt, src]:
+                    # Remove actual contribution
+                    x_src = x[:, src:src+1, :, :]
+                    w = W[tgt:tgt+1, src:src+1, :, :]
+                    actual_contrib = torch.nn.functional.conv2d(x_src, w, bias=None,
+                                                            stride=self.features[layer_i].stride,
+                                                            padding=self.features[layer_i].padding)
+                    conv_out[:, tgt] -= actual_contrib.squeeze(1)
+                    # Add average activation
+                    avg_act = torch.tensor(avg_conn_activations[tgt, src]).to(conv_out.device)
+                    conv_out[:, tgt] += avg_act
+        return conv_out

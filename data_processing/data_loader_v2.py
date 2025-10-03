@@ -46,7 +46,7 @@ class DataLoader:
     Grasp labels:
         - self.load_grasp_label() and self.get_grasp_label()
     """
-    def __init__(self, path, batch_size, train_val_split=0.2, include_depth=True, return_mask=False, verbose=True, seed=None, device=params.DEVICE):
+    def __init__(self, path, batch_size, train_val_split=0.2, include_depth=True, return_mask=False, verbose=True, seed=None, device=params.DEVICE, no_shuffle=False):
         self.path = path
         self.batch_size = batch_size
         self.train_val_split = train_val_split
@@ -63,7 +63,7 @@ class DataLoader:
         # Shuffle ids for training
         if seed is not None:
             random.seed(seed)
-        random.shuffle(self.img_id_list)
+        if not no_shuffle: random.shuffle(self.img_id_list)
 
         # Custom data augmentations
         # Add gaussian noise with 25% probability

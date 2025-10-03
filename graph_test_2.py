@@ -10,6 +10,7 @@ import torch
 import matplotlib
 import matplotlib.pyplot
 import os
+from scipy.stats import linregress
 from scipy.stats import pearsonr
 from scipy.linalg import eigvalsh
 from sklearn.metrics.pairwise import cosine_similarity
@@ -155,15 +156,13 @@ def pearson_graph_similarity(G1, G2, weight_attr='weight'):
     """Computes Pearson correlation between the edge weight vectors of two graphs."""
     # Union of all edges from both graphs
     all_edges = sorted(set(G1.edges()) & set(G2.edges()))
-    print(len(all_edges))
+
     vec1, edge_1 = graph_edge_weight_vector(G1, edge_order=all_edges, weight_attr=weight_attr)
     vec2, edge_2 = graph_edge_weight_vector(G2, edge_order=all_edges, weight_attr=weight_attr)
     assert(edge_1 == edge_2)
     # Handle edge case: if all values are constant, correlation is undefined
     if np.std(vec1) == 0 or np.std(vec2) == 0:
         return 0.0
-    print(vec1.shape)
-    print(vec2.shape)
     print(f"Correlating {len(vec1)} edge weights between the two graphs.")
 
     # Plot the correlation
@@ -238,7 +237,16 @@ def get_layer_means(graph):
                 i += 1
                 total += graph[u][v]["weight"]
         means.append(total/i)
-    return means           
+    return means        
+def get_out_edge_weights(graph):
+    out_weights = np.zeros_like(np.load("shap_arrays/shap_values.npy")[:,:,0])
+    for layer_idx in range(len(layers) - 1):
+        layer_X = layers[layer_idx]
+        for kernel_i in range([64,32,64,64][layer_idx]):
+            src = f"{layer_X}_k{kernel_i}"
+            out_edges = graph.out_edges(src, data=True)
+            out_weights[layer_idx, kernel_i] = np.mean([abs(data['weight']) for _,_,data in out_edges])     
+    return out_weights   
 def visualize_graph_discrete(threshold=0.15, shap_thresh=0.5):
     refinedness = 10
     shap_values = np.load("shap_arrays/shap_values.npy")
@@ -587,16 +595,45 @@ def visualize_graph():
     fig.savefig("graph.png")
     
     
-refine_graphs = True
-activity_graph = pickle.load(open('graphs/sim_weight_activity.pickle', 'rb'))
-weights_graph = pickle.load(open('graphs/just_weights.pickle', 'rb'))
+refine_graphs = False
+activity_graph = pickle.load(open('graphs/activity.pickle', 'rb'))
+weights_graph = pickle.load(open('graphs/just_weights3.pickle', 'rb'))
 shapley_graph = pickle.load(open('graphs/shap_graph_fix.pickle', 'rb'))
 dummy_graph = nx.DiGraph()
 edges = sorted(activity_graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
 for src, tgt, data in edges:
     dummy_graph.add_edge(src, tgt, weight=0.1)  
 if refine_graphs:
-    activity_graph, shapley_graph, dummy_graph, weights_graph = get_refined_graphs([activity_graph, shapley_graph, dummy_graph, weights_graph], add_start = False, refinedness=7) 
+    activity_graph, shapley_graph, dummy_graph, weights_graph = get_refined_graphs([activity_graph, shapley_graph, dummy_graph, weights_graph], add_start = False, refinedness=20) 
+detach_graph(activity_graph)
+data = get_out_edge_weights(activity_graph)
+flat_data = np.concatenate([data[0,:], data[1,:32], data[2,:],data[3,:]])
+shap_values = np.load("shap_arrays/shap_values.npy")
+
+# Normalize shapley values to [0, 1] for each layer and channel separately
+shap_min = shap_values.min(axis=1, keepdims=True)
+shap_max = shap_values.max(axis=1, keepdims=True)
+data = (shap_values - shap_min) / (shap_max - shap_min + 1e-8)
+data = data[:,:,0]
+flat_shap = np.concatenate([data[0,:], data[1,:32], data[2,:],data[3,:]])
+def scatter_with_fit(ax, x, y, title, xlabel, ylabel):
+    ax.scatter(x, y)
+    # Line of best fit
+    slope, intercept, r_value, p_value, std_err = linregress(x, y)
+    x_fit = np.linspace(np.min(x), np.max(x), 100)
+    y_fit = slope * x_fit + intercept
+    ax.plot(x_fit, y_fit, color='red', linestyle='--')
+    ax.set_title(f"{title}\n(r={r_value:.3g}, p={p_value:.3g})")
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+
+fig, axs = plt.subplots(1, 1, figsize=(12, 10))
+
+scatter_with_fit(axs, flat_data, flat_shap,
+                 'Average Weight Magnitude vs Shap magnitude', 'Avg out weights', 'Shapley magnitude')
+plt.tight_layout()
+plt.savefig("test_full.png")
+exit()
 # visualize_graph_discrete()
 # exit()
 # print_edges(activity_graph)
@@ -606,9 +643,10 @@ if refine_graphs:
 # print(weighted_graph_similarity_cosine(dummy_graph, activity_graph))
 # print(weighted_graph_similarity_cosine(dummy_graph, shapley_graph))
 
-#print(pearson_graph_similarity(activity_graph, shapley_graph))
-# print(pearson_graph_similarity(dummy_graph, activity_graph))
+print(pearson_graph_similarity(weights_graph, shapley_graph))
+# print(pearson_graph_similarity(dummy_graph, weights_graph))
 # print(pearson_graph_similarity(dummy_graph, shapley_graph))
+exit()
 method = "cosine"
 similarity = spectral_similarity(activity_graph, shapley_graph, method=method)
 print("Spectral Similarity between activity_graph, shapley_graph: ", similarity)

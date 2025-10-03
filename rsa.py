@@ -146,13 +146,11 @@ def time_eeg_rsm(task):
     end_idx = np.where(timepoints == times[-1][1])[0][0]
     i = zero_idx
     averaged_data = np.mean(data, axis=(0, 1,))
-    print(averaged_data.shape)
-    print(end_idx)
     while i + time_bin < end_idx:
         activations_flat.append(averaged_data[i:i+time_bin].flatten())
         i += time_bin
     act_array = np.asarray(activations_flat)
-    print(act_array.shape)
+
     rsm = squareform(pdist(act_array, metric="correlation"))  # EEG RSM is calculated here!!
     plt.figure(figsize=(8, 6))
     im = plt.imshow(rsm, cmap='bwr', aspect='auto', vmin=0, vmax=1)
@@ -202,9 +200,10 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls",corr_type
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
     corrs = []
     data = get_data_matlab(task,avr=True, left=False, single = single, bad_participants=bad_participants)
-    if "depth" not in model_rsm_path: model_order = ["rgb.npy", "features_0.npy", "features_4.npy", "features_7.npy", "features_10.npy"]
-    else: model_order = ["0.npy", "1.npy","2.npy","3.npy","4.npy"]
 
+    if ("depth" not in model_rsm_path) and ("sort" not in model_rsm_path): model_order = ["rgb.npy", "features_0.npy", "features_4.npy", "features_7.npy", "features_10.npy"]
+    else: model_order = ["0.npy", "1.npy","2.npy","3.npy","4.npy"]
+    
     for i in range(len(times)):
         corrs.append([])
         labels = data.keys()
@@ -229,6 +228,7 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls",corr_type
             file_path = os.path.join(model_rsm_path, file)
             matrices[file] = np.load(file_path)  # Load and store each matrix in the dictionary
         for file in model_order:
+
             model_matrix = matrices[file]
             rsm1_flat = result[np.triu_indices(result.shape[0], k=1)]
             rsm2_flat = model_matrix[np.triu_indices(model_matrix.shape[0], k=1)]
@@ -247,7 +247,7 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls",corr_type
 
         # Adjusting for one-tailed test (since scipy gives a two-tailed p-value)
         one_tailed_p_value = p_value / 2 if t_stat > 0 else 1 - p_value / 2
-        print(f"time period {i+1}, {task}, p-value (1-tailed against 0): {one_tailed_p_value}")
+        #print(f"time period {i+1}, {task}, p-value (1-tailed against 0): {one_tailed_p_value}")
     ind = np.arange(N)  
     width = 0.13 #0.15 width of the bars
     axis_font_size = 18
@@ -277,40 +277,45 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls",corr_type
         bars.append(bar)
         for j, rect in enumerate(bar):
             height = rect.get_height()
+            #print(height)
+            asterisk_fontsize = 20
             if corrs[j, i][1] < 0.05 and corrs[j,i][0] > 0 and corrs[j, i][1] > 0.01:
-                plt.text(rect.get_x() + rect.get_width() / 2.0, height, "*", ha='center', va='bottom')
+                plt.text(rect.get_x() + (rect.get_width() / 2.0) -0.01, height - 0.009, "*",fontsize=asterisk_fontsize, ha='center', va='bottom')
             elif corrs[j,i][0] > 0 and corrs[j, i][1] < 0.01:
-                plt.text(rect.get_x() + rect.get_width() / 2.0, height, "**", ha='center', va='bottom')
+                plt.text(rect.get_x() + (rect.get_width() / 2.0)-0.01, height- 0.009, "*",fontsize=asterisk_fontsize, ha='center', va='bottom')
+                plt.text(rect.get_x() + (rect.get_width() / 2.0)-0.01, height, "*",fontsize=asterisk_fontsize, ha='center', va='bottom')
     ticks = [f'{desire_times[i][0]}-{desire_times[i][1]}' for i in range(len(desire_times))]
     plt.xticks(ind+(width*2), ticks, fontsize=tick_font_size)
     plt.yticks(fontsize=tick_font_size)
-    leg = plt.legend(bars, ('1st Layer', '2nd Layer', '3rd Layer', '4th Layer', '5th Layer'), fontsize=14, framealpha=1.0) 
-    leg.get_frame().set_edgecolor('black')
+    leg = plt.legend(bars, ('1st Layer', '2nd Layer', '3rd Layer', '4th Layer', '5th Layer'), fontsize=18, framealpha=1.0, ncol = 5, loc = "upper center", edgecolor = 'white') 
+    plt.axvline(ind[1] + width*2, color='black', linestyle='--', linewidth=2)
     if task == "class" or task == "cls":
         plt.title(f"Correlation of EEG RSM with Model RSMs: Recognition Task", fontsize=title_font_size)
     else:
         plt.title(f"Correlation of EEG RSM with Model RSMs: Grasp Task", fontsize=title_font_size)
-    plt.xlabel("Time Periods (ms from Stimulus Onset)", fontsize=axis_font_size)
+    plt.xlabel("Time Period (ms from Stimulus Onset)", fontsize=axis_font_size)
     if corr_type=="kendall": plt.ylabel("Kendall's T", fontsize=axis_font_size)
     elif corr_type=="pearson": plt.ylabel("Pearson Correlation (r-value)", fontsize=axis_font_size)
     elif corr_type=="spearman": plt.ylabel("Spearman's Rank \nCorrelation Coefficient", fontsize=axis_font_size)
     ax = plt.gca()
     ax.set_ylim([0, 0.4])
-    plt.axhline(y=0, color='black', linestyle='-')
-    plt.figtext(0.1, 0.02, "*: p-value < 0.05 \n **: p-value < 0.01 ", ha="center", fontsize=13)
-    plt.savefig("vis/rsm_correlation_1/%s_%s_%s" % (task, name_suffix, corr_type))
+    plt.axhline(y=0, color='black', linestyle='-', alpha=0.5)
+    plt.figtext(0.1, 0.02, "  : p-value < 0.05 \n  : p-value < 0.01 ", ha="center", fontsize=13)
+    plt.figtext(0.067, 0.02+0.024, "*", ha="center", fontsize=asterisk_fontsize)
+    plt.figtext(0.067, 0.02-0.007, "*", ha="center", fontsize=asterisk_fontsize)
+    plt.figtext(0.067, 0.02 - 0.016-0.009, "*", ha="center", fontsize=asterisk_fontsize)
+    plt.savefig("vis/rsm_correlation_1/%s_%s_%s" % (task, name_suffix, corr_type), dpi=300)
 suffix = sys.argv[1]
 corr_type = sys.argv[2]
 try: bad_participants = [int(re.sub(r'\D','', num)) for num in suffix.split('-')]
 except: bad_participants = []
+print(bad_participants)
 desire_times = [(0, 50), (50, 100),(100, 150),(150, 200),(200,250), (250, 400)]  
 #timepoints are identical across the files so this can stay the same
 tp_file = 'data/timepoints_8_cls.csv'
 timepoints = np.loadtxt(tp_file, delimiter=',')
 times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
-time_eeg_rsm("grasp")
-time_eeg_rsm("class")
-exit()
+
 task = sys.argv[3]
 try: 
     model_path = sys.argv[4]
@@ -334,7 +339,7 @@ times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda
 if model_path == "depth":
     model_rsm_folder_path = f'saved_model_rsms/{model_path}'
 elif model_path: 
-    model_rsm_folder_path = f'saved_model_rsms/{task}/{model_path}'
+    model_rsm_folder_path = f'saved_model_rsms/class/{model_path}'
 else:
     model_rsm_folder_path = f'saved_model_rsms/'
     
