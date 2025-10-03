@@ -88,8 +88,8 @@ def get_data_matlab(task,avr=True, left = False, single=-1, bad_participants =[]
                 summed = concat_begin.sum(axis=0)/len(object_to_average_over_exp)
                 # 20:33 + 56: is all the back
                 
-                #if not left: summed = np.concatenate((summed[:, 20:33], summed[:, 56:]), axis=1)
-                if not left: summed = np.concatenate((summed[:, 25:31], summed[:, 62:]), axis=1)
+                if not left: summed = np.concatenate((summed[:, 19-1:33-1], summed[:, 56-1:]), axis=1)
+                #if not left: summed = np.concatenate((summed[:, 25-1:31-1], summed[:, 62-1:]), axis=1)
                 else: summed = summed[:, 20:33]
                 assert(summed.shape[0] == 307)
                 all_data[category].append(summed)
