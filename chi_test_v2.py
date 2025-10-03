@@ -222,12 +222,12 @@ def normalize_edges_per_layer(graph):
 import scipy.stats as stats
 def build_node_types_advanced(shap_values,
                               method='z_ratio',
-                              z_thresh=1.0,
-                              cross_max=0.5,
+                              z_thresh=0.5,
+                              cross_max=0.,
                               ratio_high=0.6,
                               ratio_low=0.4,
-                              effect_thresh=0.5,
-                              top_k=10):
+                              effect_thresh=0.15,
+                              top_k=20):
     """
     Advanced node typing.
     Methods:
@@ -405,9 +405,9 @@ def count_specialized_edges_per_transition(graph, node_types):
                 t_v = node_types.get(v,'no_pref')
                 # specialized edge: both specialized and same type (class->class OR grasp->grasp)
                 if t_u == t_v and t_u in ('class','grasp'):
-                    spec += 1
+                    spec += data['weight']
                 else:
-                    other += 1
+                    other += data['weight']
         transitions.append(f"{Ls}->{Lt}")
         spec_counts.append(spec)
         other_counts.append(other)
@@ -427,7 +427,7 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
                                   refinedness=10,
                                   node_type_method='hand_picked',
                                   print_details=True,
-                                  out_path='chi_square_specialization_results.txt',
+                                  out_path='weighted_chi_square_specialization_results.txt',
                                   counts_on='base'):
     """
     Loads graph, refines, classifies nodes with multiple methods, builds contingency tables,
@@ -493,8 +493,8 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
 
         if print_details:
             print("Layer transitions:", transitions)
-            print("Specialized counts:", spec_counts)
-            print("Other counts:", other_counts)
+            print("Specialized weighted counts:", spec_counts)
+            print("Other weighted counts:", other_counts)
             print("Proportions specialized:", [f"{p_i:.3f}" for p_i in proportions])
             print("Contingency (rows=transitions, cols=[specialized, other]):")
             print(contingency)
@@ -522,7 +522,7 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
     # Write results file
     try:
         with open(out_path, 'w') as f:
-            f.write(f"Chi-square specialization analysis\nTimestamp: {timestamp}\n")
+            f.write(f"Chi-square Weighted specialization analysis\nTimestamp: {timestamp}\n")
             f.write(f"Graph path: {graph_path}\nRefinedness: {refinedness}\nCounts on: {counts_on}\n")
             f.write(f"Methods run: {', '.join(methods_to_run)}\n")
             f.write("-"*70 + "\n\n")
@@ -551,10 +551,10 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
 # ---------------- Run the analysis ----------------
 # Example call (adjust as needed):
 run_chi_square_specialization(
-    graph_path='graphs/just_weights.pickle',
+    graph_path='graphs/just_weights3.pickle',
     refinedness=32,
     node_type_method='topk_each',
-    out_path='chi_square_specialization_results.txt',
+    out_path='weighted_chi_square_specialization_results.txt',
     counts_on='base'
 )
 
