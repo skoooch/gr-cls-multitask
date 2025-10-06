@@ -41,11 +41,13 @@ def get_cls_acc(model, subset, batch_size=5):
     loss = 0
     correct = 0
     total = 0
-    for (img, cls_map, label) in subset:
-      output = model(img, is_grasp=False)
-      batch_correct, batch_total = get_correct_cls_preds_from_map(output, label)
-      correct += batch_correct
-      total += batch_total
+    model.eval()
+    with torch.no_grad():
+      for (img, cls_map, label) in subset:
+        output = model(img, is_grasp=False)
+        batch_correct, batch_total = get_correct_cls_preds_from_map(output, label)
+        correct += batch_correct
+        total += batch_total
     accuracy = get_acc(correct, total)
     return accuracy, round(loss / total, 3)
 def get_grasp_acc(model, subset, batch_size=5):
@@ -53,19 +55,21 @@ def get_grasp_acc(model, subset, batch_size=5):
     loss = 0
     correct = 0
     total = 0
-    for (img, map, candidates) in subset:
-      output = model(img, is_grasp=True)
-      # Move grasp channel to the end
-      output = torch.moveaxis(output, 1, -1)
-      # Denoramlize grasps
-      denormalize_grasp(output)
+    model.eval()
+    with torch.no_grad():
+      for (img, map, candidates) in subset:
+        output = model(img, is_grasp=True)
+        # Move grasp channel to the end
+        output = torch.moveaxis(output, 1, -1)
+        # Denoramlize grasps
+        denormalize_grasp(output)
 
-      # Convert grasp map into single grasp prediction
-      output_grasp = map2singlegrasp(output)
-      output_grasp = torch.unsqueeze(output_grasp, dim=1).repeat(1, candidates.shape[0], 1)
-      batch_correct, batch_total =  get_correct_grasp_preds(output_grasp, candidates[None, :, :]) #get_correct_grasp_preds_from_map(output, map)
-      correct += batch_correct
-      total += batch_total
+        # Convert grasp map into single grasp prediction
+        output_grasp = map2singlegrasp(output)
+        output_grasp = torch.unsqueeze(output_grasp, dim=1).repeat(1, candidates.shape[0], 1)
+        batch_correct, batch_total =  get_correct_grasp_preds(output_grasp, candidates[None, :, :]) #get_correct_grasp_preds_from_map(output, map)
+        correct += batch_correct
+        total += batch_total
     accuracy = get_acc(correct, total)
     return accuracy, round(loss / total, 3)
   
@@ -81,13 +85,14 @@ def remove_connections(model: nn.Module, layer: str, removed_connections: list) 
         # Directly access the layer's weight
         layer_module = dict(model.named_modules())[layer]
         W = layer_module.weight
+
         # Store original weights
         orig_weights = W.data.clone()
-
         if removed_connections:
             src_idx = torch.tensor([src for src, tgt in removed_connections], dtype=torch.long)
             tgt_idx = torch.tensor([tgt for src, tgt in removed_connections], dtype=torch.long)
             W.data[tgt_idx, src_idx, :, :] = 0
+        W = orig_weights
     return model, orig_weights
 
 def get_players(src_kernels, tgt_kernels):
@@ -99,7 +104,7 @@ def get_players(src_kernels, tgt_kernels):
     return players
 
 def convert_index_to_value(idx):
-    src = idx // SIZES[layer_i+1]
+    src = idx // SIZES[layer_i]
     tgt = idx % SIZES[layer_i]
     return (src, tgt)
 
@@ -409,7 +414,7 @@ if __name__ == "__main__":
     task_in = sys.argv[4]
     PARALLEL_ID += f'_{task_in}'
     PARALLEL_ID += f'_{layer_i}'
-    estimator = SVARM(normalize=True, warm_up=True, layer_i=1, task=task_in, budget=50000000, alpha=0.05,
+    estimator = SVARM(normalize=True, warm_up=True, layer_i=layer_i, task=task_in, budget=50000000, alpha=0.05,
             stop_eps=0.01, progress_every=50)
     result = estimator.approximate_shapley_values(mse_target=0.002, log_dir="logs/svarm_run1", )
     print("Shapley:", result['shapley'])
