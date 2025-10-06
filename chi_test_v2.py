@@ -21,15 +21,87 @@ METHOD_DESCRIPTIONS = {
     'effect':    "Uses normalized difference (effect size style); assigns if |(c-g)/( |c|+|g| )| exceeds threshold; otherwise no_pref.",
     'mixture':   "Fits 3-component Gaussian Mixture to (class−grasp) differences; extreme components => specialized, middle => no_pref."
 }
+import matplotlib.pyplot as plt
+def compute_per_transition_chi_p(spec_counts, other_counts):
+    """
+    For each transition i build 2x2 table:
+        [[spec_i, other_i],
+         [spec_rest, other_rest]]
+    Returns (chi_list, p_list)
+    """
+    spec_counts = np.array(spec_counts, dtype=float)
+    other_counts = np.array(other_counts, dtype=float)
+    total_spec = spec_counts.sum()
+    total_other = other_counts.sum()
+    chi_list = []
+    p_list = []
+    for i in range(len(spec_counts) - 1):
+        total_spec = spec_counts[i: i+1].sum()
+        total_other = other_counts[i:i+1].sum()
+        table = np.array([
+            [spec_counts[i+1], other_counts[i+1]],
+            [total_spec, total_other]
+        ])
+        chi2, p, dof, exp = stats.chi2_contingency(table, correction=False)
+        chi_list.append(chi2)
+        p_list.append(p)
+    return chi_list, p_list
+
+def plot_transition_chi(all_results,
+                        save_path='chi_per_transition_significance.png',
+                        title='Per-transition Chi-square',
+                        show=False):
+    """
+    For each method plot 4 chi-square values (one per layer transition)
+    with significance stars: * p<0.05, ** p<0.01, *** p<0.001
+    """
+    if not all_results:
+        print("No results to plot.")
+        return
+    method_colors = {
+        'topk_each': '#B5651D',
+        'z_ratio':   '#800080',
+        'effect':    '#006400',
+        'mixture':   '#000000',
+    }
+    transitions = all_results[0]['transitions'][1:]
+    x = np.arange(len(transitions))  # 0..3
+    plt.figure(figsize=(7,4))
+    for res in all_results:
+        chi_vals, p_vals = compute_per_transition_chi_p(res['specialized'], res['other'])
+        color = method_colors.get(res['method'], None)
+        print(x)
+        print(chi_vals)
+        plt.plot(x, chi_vals, marker='o', linewidth=2, markersize=6, label=res['method'], color=color)
+        # Add significance stars slightly above point
+        for xi, (chi_v, p_v) in enumerate(zip(chi_vals, p_vals)):
+            if p_v < 0.001:
+                stars = '***'
+            elif p_v < 0.01:
+                stars = '**'
+            elif p_v < 0.05:
+                stars = '*'
+            else:
+                stars = ''
+            if stars:
+                plt.text(xi, chi_v + (0.03 * max(chi_vals + [1])), stars,
+                         ha='center', va='bottom', fontsize=10, color=color)
+    plt.xticks(x, transitions, rotation=0)
+    plt.xlabel("Layer transition")
+    plt.ylabel("Chi-square (transition vs rest)")
+    plt.title(title)
+    plt.legend(frameon=False)
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=200)
+    if show:
+        plt.show()
+    plt.close()
+    print(f"Saved plot with significance stars to {save_path}")
 layers = ['rgb_features.0', 'features.0','features.4','features.7','features.10']
 
 grasp_kernels=[[62,17,],[19,2,7],[42,13,22,5,50],[41,22,21,13,12],[1,45,42,20]]
 cls_kernels=[[20],[17],[40,47,32,28],[58,59,54,45,],[13,10,12,6,4]]
 
-def detach_graph(graph):
-    edges = sorted(graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
-    for src, tgt, data in edges:
-        graph[src][tgt]["weight"] = graph[src][tgt]["weight"].cpu()
 def get_refined_graphs(graph_list, add_start=False, refinedness = 6):
     shap_indices = np.load("shap_arrays/sort_shap_indices.npy")
     refined_graph_list = []
@@ -70,71 +142,6 @@ def get_refined_graphs(graph_list, add_start=False, refinedness = 6):
                         pass
     return refined_graph_list
 
-
-def calculate_graph_measures(graph):
-    """
-    Given a directed, weighted graph of kernel connectivity, compute graph-theoretic measures.
-    
-    Returns:
-        pandas.DataFrame with node-wise metrics.
-    """
-    # Ensure weights are used where appropriate
-    inverted_graph = nx.DiGraph()
-    edges = sorted(graph.edges(data=True), key=lambda x: -abs(x[2]['weight']))
-    for src, tgt, data in edges:
-        inverted_graph.add_edge(src, tgt, weight=1-graph[src][tgt]['weight'])
-    betweenness = nx.betweenness_centrality(inverted_graph, weight='weight', normalized=True)
-    eigenvector = nx.eigenvector_centrality(graph, max_iter=1000, weight='weight')
-    pagerank = nx.pagerank(graph, weight='weight')
-    in_degree = dict(graph.in_degree(weight='weight'))
-    out_degree = dict(graph.out_degree(weight='weight'))
-
-    # Combine all into a dataframe
-    df = pd.DataFrame({
-        "betweenness": betweenness, 
-        "eigenvector": eigenvector,
-        "pagerank": pagerank,
-        "in_degree": in_degree,
-        "out_degree": out_degree,
-    })
-
-    return df.sort_values("eigenvector", ascending=False)  # Sort by importance
-
-def weighted_graph_similarity_cosine(G1, G2, attr_name='weight'):
-    """Computes cosine similarity between two weighted graphs."""
-    all_edges = sorted(set(G1.edges()) | set(G2.edges()))
-    
-    vec1 = graph_edge_weight_vector(G1, edge_order=all_edges, weight_attr=attr_name)
-    vec2 = graph_edge_weight_vector(G2, edge_order=all_edges, weight_attr=attr_name)
-    return cosine_similarity([vec1], [vec2])[0][0]
-
-def get_laplacian_spectrum(graph, k=None, normed=False):
-    """Returns sorted eigenvalues of the Laplacian matrix."""
-    L = nx.normalized_laplacian_matrix(graph).todense() if normed else nx.laplacian_matrix(graph).todense()
-    eigenvalues = eigvalsh(L)  # Efficient for symmetric matrices
-    eigenvalues = np.sort(eigenvalues)
-    if k:  # Use only the first k eigenvalues
-        eigenvalues = eigenvalues[:k]
-    return eigenvalues
-
-def spectral_similarity(G1, G2, k=None, normed=False, method='cosine'):
-    """Computes spectral similarity between two graphs."""
-    ev1 = get_laplacian_spectrum(G1, k=k, normed=normed)
-    ev2 = get_laplacian_spectrum(G2, k=k, normed=normed)
-
-    # Zero-pad the shorter vector to make them the same length
-    max_len = max(len(ev1), len(ev2))
-    ev1 = np.pad(ev1, (0, max_len - len(ev1)))
-    ev2 = np.pad(ev2, (0, max_len - len(ev2)))
-
-    if method == 'cosine':
-        return cosine_similarity([ev1], [ev2])[0][0]
-    elif method == 'euclidean':
-        return -np.linalg.norm(ev1 - ev2)  # Lower is more similar; use negative for "higher = better"
-    elif method == 'l1':
-        return -np.sum(np.abs(ev1 - ev2))
-    else:
-        raise ValueError("Unsupported method: choose 'cosine', 'euclidean', or 'l1'")
 
 def graph_edge_weight_vector(graph, edge_order=None, default=0.0, weight_attr='weight'):
     """Returns a vector of edge weights in a consistent order."""
@@ -183,41 +190,7 @@ def print_edges(G):
     edges = sorted(G.edges(data=True), key=lambda x: -abs(x[2]['weight']))
     for src, tgt, data in edges[:20]:
         print(f"{src} → {tgt}, weight = {data['weight']:.4f}")
-        
-def normalize_edges_per_layer(graph):
-    node_to_layer = {}
-    for node in graph.nodes():
-        if node == 'image':
-            node_to_layer[node] = 'start'
-        elif '_k' in node:
-            node_to_layer[node] = node.rsplit('_k', 1)[0]
-        else:
-            node_to_layer[node] = node
 
-    # For each (layer_X, layer_Y) pair, collect edge weights and normalize
-    for layer_idx in range(len(layers) - 1):
-        layer_X = layers[layer_idx]
-        layer_Y = layers[layer_idx + 1]
-        # Collect all edges between these layers
-        edge_list = []
-        for u, v, data in graph.edges(data=True):
-            if node_to_layer.get(u) == layer_X and node_to_layer.get(v) == layer_Y:
-                edge_list.append((u, v, data))
-        if not edge_list:
-            continue
-        weights = np.array([abs(data['weight']) for _, _, data in edge_list])
-        w_min = weights.min()
-        w_max = weights.max()
-        # Avoid division by zero
-        if w_max - w_min < 1e-8:
-            norm_weights = np.ones_like(weights)
-        else:
-            norm_weights = (weights - w_min) / (w_max - w_min)
-        # Assign normalized weights back
-        for (u, v, data), nw in zip(edge_list, norm_weights):
-            graph[u][v]['weight'] = nw
-
-# ...existing code...
 
 import scipy.stats as stats
 def build_node_types_advanced(shap_values,
@@ -375,7 +348,7 @@ def build_node_types(shap_values, method='hand_picked', top_k=15):
     node_types['image'] = 'start'
     return node_types
 
-def count_specialized_edges_per_transition(graph, node_types):
+def count_specialized_edges_per_transition(graph, node_types, weight=True):
     """
     Returns:
         transitions: list of "layerA->layerB"
@@ -405,9 +378,11 @@ def count_specialized_edges_per_transition(graph, node_types):
                 t_v = node_types.get(v,'no_pref')
                 # specialized edge: both specialized and same type (class->class OR grasp->grasp)
                 if t_u == t_v and t_u in ('class','grasp'):
-                    spec += data['weight']
+                    if weight: spec += data['weight']
+                    else: spec += 1 
                 else:
-                    other += data['weight']
+                    if weight: other += data['weight']
+                    else: other += 1 
         transitions.append(f"{Ls}->{Lt}")
         spec_counts.append(spec)
         other_counts.append(other)
@@ -428,7 +403,8 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
                                   node_type_method='hand_picked',
                                   print_details=True,
                                   out_path='weighted_chi_square_specialization_results.txt',
-                                  counts_on='base'):
+                                  counts_on='base',
+                                  weight=True):
     """
     Loads graph, refines, classifies nodes with multiple methods, builds contingency tables,
     runs chi-square + logistic trend, and saves all results to a text file.
@@ -451,7 +427,7 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
         if print_details:
             print(f"\n=== Node typing method = {m} ===")
         node_types = build_node_types_advanced(shap_values, method=m)
-        transitions, spec_counts, other_counts = count_specialized_edges_per_transition(graph_for_counts, node_types)
+        transitions, spec_counts, other_counts = count_specialized_edges_per_transition(graph_for_counts, node_types, weight=weight)
 
         contingency = np.array([spec_counts, other_counts]).T  # rows: transitions, cols: [spec, other]
         chi2, p, dof, expected = stats.chi2_contingency(contingency)
@@ -550,12 +526,15 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
 
 # ---------------- Run the analysis ----------------
 # Example call (adjust as needed):
-run_chi_square_specialization(
+# ---------------- Run the analysis + visualize ----------------
+weight = True
+results = run_chi_square_specialization(
     graph_path='graphs/just_weights3.pickle',
     refinedness=32,
     node_type_method='topk_each',
-    out_path='weighted_chi_square_specialization_results.txt',
-    counts_on='base'
+    out_path='count_chi_square_specialization_results.txt',
+    counts_on='base',
+    weight=weight
 )
-
+plot_transition_chi(results, save_path=f'{'weight' if weight else 'count'}_chi_per_transition_significance.png', title=f"{'Weighted' if weight else 'Unweighted'}Per-transition Chi-sqaure")
 # ...existing code...
