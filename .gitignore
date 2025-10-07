@@ -21,3 +21,4 @@ dump
 *goodale/trained_models/*
 !shap_arrays/*
 !logs/svarm_run1/*
+*get-pip.py
