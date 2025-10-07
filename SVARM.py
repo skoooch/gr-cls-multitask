@@ -104,8 +104,8 @@ def get_players(src_kernels, tgt_kernels):
     return players
 
 def convert_index_to_value(idx):
-    src = idx // SIZES[layer_i]
-    tgt = idx % SIZES[layer_i]
+    src = idx // SIZES[layer_i+1]
+    tgt = idx % SIZES[layer_i+1]
     return (src, tgt)
 
 # SVARM
