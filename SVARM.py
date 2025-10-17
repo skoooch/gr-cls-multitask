@@ -76,6 +76,9 @@ def get_grasp_acc(model, subset, batch_size=5):
 def restore_connections(layer_module, orig_weights):
 
     layer_module.weight.data.copy_(orig_weights)
+def restore_connections_first(layer_module, orig_weights):
+    layer_module[0].weight.data.copy_(orig_weights[0])
+    layer_module[1].weight.data.copy_(orig_weights[1])
     
 def remove_connections(model: nn.Module, layer: str, removed_connections: list) -> nn.Module:
     """
@@ -94,6 +97,28 @@ def remove_connections(model: nn.Module, layer: str, removed_connections: list) 
             W.data[tgt_idx, src_idx, :, :] = 0
         W = orig_weights
     return model, orig_weights
+def remove_connections_first(model: nn.Module, removed_connections: list) -> nn.Module:
+    """
+    Efficiently silence the impact of specific connections (src_kernel, tgt_kernel) in <layer> of <model>.
+    """
+    with torch.no_grad():
+        # Directly access the layer's weight
+        rgb_layer_module = dict(model.named_modules())['rgb_features.0']
+        depth_layer_module = dict(model.named_modules())['d_features.0']
+        W_rgb = rgb_layer_module.weight
+        W_d = depth_layer_module.weight
+        # Store original weights
+        orig_weights = (W_rgb.data.clone(), W_d.data.clone())
+        if removed_connections:
+            src_idx_rgb = torch.tensor([src for src, tgt in removed_connections if tgt < 64], dtype=torch.long)
+            tgt_idx_rgb = torch.tensor([tgt for src, tgt in removed_connections if tgt < 64], dtype=torch.long)
+            src_idx_d = torch.tensor([src for src, tgt in removed_connections if tgt >= 64], dtype=torch.long)
+            tgt_idx_d = torch.tensor([tgt - 64  for src, tgt in removed_connections if tgt >= 64], dtype=torch.long)
+            W_rgb.data[tgt_idx_rgb, src_idx_rgb, :, :] = 0
+            W_d.data[tgt_idx_d, src_idx_d, :, :] = 0
+        W_rgb = orig_weights[0]
+        W_d = orig_weights[1]
+    return model, orig_weights
 
 def get_players(src_kernels, tgt_kernels):
     ## Load the list of all players (filters) else save
@@ -103,10 +128,11 @@ def get_players(src_kernels, tgt_kernels):
             players.append((i,j))
     return players
 
-def convert_index_to_value(idx):
-    src = idx // SIZES[layer_i+1]
-    tgt = idx % SIZES[layer_i+1]
-    return (src, tgt)
+def convert_index_to_value(idx, layer_i):
+  src = idx // SIZES[layer_i+1]
+  tgt = idx % SIZES[layer_i+1]
+  return (src, tgt)
+
 
 # SVARM
 class SVARM():
@@ -130,7 +156,7 @@ class SVARM():
 
     top5_indices = np.argsort(shap_values, axis=-1)[..., -5:]
     top_5_keys = top5_indices[layer_i,:]
-    players_tuple = get_players(range(SIZES[layer_i]), range(SIZES[layer_i+1]))
+    players_tuple = get_players(range(SIZES[layer_i]), range(SIZES[layer_i+1])) if layer_i != -1 else get_players(range(3), range(128))
     self.connections = players_tuple
     self.players = np.array([i for i in range(len(self.connections))])
     self.n = len(self.players)
@@ -142,7 +168,7 @@ class SVARM():
     self.shapley_var_values = np.zeros(self.n)
     self.idx_to_val = {}
     for p in self.players:
-        self.idx_to_val[p] = convert_index_to_value(p)
+        self.idx_to_val[p] = convert_index_to_value(p, layer_i)
     self.task = task
     self.model = get_model(MODEL_PATH, DEVICE)
     self.subset = []
@@ -169,11 +195,11 @@ class SVARM():
     if self.task == 'grasp':
       for i, (img, map, candidates) in enumerate(data_loader.load_grasp()):
         
-        if i >=5: break
+        if i >=10: break
         self.subset.append((img, map, candidates))
     else:
       for i, (img, map, candidates) in enumerate(data_loader.load_cls()):
-        if i >=5: break
+        if i >=10: break
         self.subset.append((img, map, candidates))
     if self.warm_up:
       self.__conduct_warmup()
@@ -315,11 +341,15 @@ class SVARM():
         # Find connections to remove: those in self.players but not in players_keep
         removed_connections = [self.idx_to_val[conn] for conn in self.players if conn not in players_keep]
         # Remove those connections from the model
-        self.model, orig_weights = remove_connections(self.model, LAYERS[self.layer_i + 1], removed_connections)
+        if self.layer_i != -1: self.model, orig_weights = remove_connections(self.model, LAYERS[self.layer_i + 1], removed_connections)
+        else: self.model, orig_weights = remove_connections_first(self.model, removed_connections)
+        
         # Compute the game value (e.g., accuracy or other metric)
         value = get_accuracy(self.model, task=self.task, device = DEVICE, subset = self.subset)
         # Restore original weights
-        restore_connections(dict(self.model.named_modules())[LAYERS[self.layer_i+1]], orig_weights)
+        if self.layer_i != -1: restore_connections(dict(self.model.named_modules())[LAYERS[self.layer_i+1]], orig_weights)
+        else: restore_connections_first([dict(self.model.named_modules())['rgb_features.0'],dict(self.model.named_modules())['d_features.0']], orig_weights)
+       
         return self.budget > 0, value
 
   def get_estimates(self):
