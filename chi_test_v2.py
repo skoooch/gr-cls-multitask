@@ -1,3 +1,5 @@
+import math
+from os import sep
 import networkx as nx
 import pickle
 
@@ -5,7 +7,7 @@ from sklearn import dummy
 from utils.parameters import Params
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3  
 from data_processing.data_loader_v2 import DataLoader  
-
+from matplotlib.patches import Patch
 from scipy.stats import linregress
 from scipy.stats import pearsonr
 from scipy.linalg import eigvalsh
@@ -22,7 +24,15 @@ METHOD_DESCRIPTIONS = {
     'mixture':   "Fits 3-component Gaussian Mixture to (class−grasp) differences; extreme components => specialized, middle => no_pref."
 }
 import matplotlib.pyplot as plt
-def compute_per_transition_chi_p(spec_counts, other_counts):
+from matplotlib import font_manager
+import scipy.stats as stats
+
+font_manager._load_fontmanager(try_read_cache=False)
+font_path = 'ARIAL.TTF'  # Replace with the actual path
+font_entry = font_manager.FontEntry(fname=font_path, name='MyCustomFontName')
+font_manager.fontManager.ttflist.insert(0, font_entry) # Add to the beginning of the list
+plt.rcParams['font.family'] = ['MyCustomFontName'] # Set as default
+def compute_per_transition_chi_p(spec_counts, other_counts, cross_counts, cross=False, remove_cross=False):
     """
     For each transition i build 2x2 table:
         [[spec_i, other_i],
@@ -31,6 +41,10 @@ def compute_per_transition_chi_p(spec_counts, other_counts):
     """
     spec_counts = np.array(spec_counts, dtype=float)
     other_counts = np.array(other_counts, dtype=float)
+    cross_counts = np.array(cross_counts, dtype = float)
+    if remove_cross or cross:
+        other_counts = other_counts - cross_counts
+    if cross: spec_counts = cross_counts
     total_spec = spec_counts.sum()
     total_other = other_counts.sum()
     chi_list = []
@@ -42,15 +56,35 @@ def compute_per_transition_chi_p(spec_counts, other_counts):
             [spec_counts[i+1], other_counts[i+1]],
             [total_spec, total_other]
         ])
+        directional = spec_counts[i+1] - (spec_counts[i+1] + other_counts[i+1]) * \
+            (spec_counts[i+1] + total_spec) / (total_spec + total_other + spec_counts[i+1] + other_counts[i+1]) 
+        direction = (int(directional) > 0) - (int(directional) < 0) 
+        print(table)
         chi2, p, dof, exp = stats.chi2_contingency(table, correction=False)
-        chi_list.append(chi2)
+        chi_list.append(chi2 * direction)
         p_list.append(p)
     return chi_list, p_list
-
+def fix_labels(mylabels, tooclose=0.1, sepfactor=2):
+    vecs = np.zeros((len(mylabels), len(mylabels), 2))
+    dists = np.zeros((len(mylabels), len(mylabels)))
+    for i in [1,3]:
+        for j in [0]:
+            a = np.array(mylabels[i].get_position())
+            b = np.array(mylabels[j].get_position())
+            dists[i,j] = np.linalg.norm(a-b)
+            vecs[i,j,:] = a-b
+            if dists[i,j] < tooclose:
+                print(mylabels[i])
+                if dists[i,j] < 0.02: temp_sepfactor = 5
+                else: temp_sepfactor = sepfactor
+                mylabels[i].set_x(a[0] + (1.4-dists[i,j]*9) * temp_sepfactor*vecs[i,j,0])
+                mylabels[i].set_y(a[1] + (1.4-dists[i,j]*9) * temp_sepfactor*vecs[i,j,1])
+                # mylabels[j].set_x(b[0] - (1.5-dists[i,j]*10) * temp_sepfactor*vecs[i,j,0])
+                # mylabels[j].set_y(b[1] - (1.5-dists[i,j]*10) * temp_sepfactor*vecs[i,j,1])
 def plot_transition_chi(all_results,
                         save_path='chi_per_transition_significance.png',
                         title='Per-transition Chi-square',
-                        show=False):
+                        show=False, cross=False, remove_cross=False):
     """
     For each method plot 4 chi-square values (one per layer transition)
     with significance stars: * p<0.05, ** p<0.01, *** p<0.001
@@ -64,11 +98,13 @@ def plot_transition_chi(all_results,
         'effect':    '#006400',
         'mixture':   '#000000',
     }
+    transition_names = ["Layer 2-3", "Layer 3-4", "Layer 4-5"]
     transitions = all_results[0]['transitions'][1:]
     x = np.arange(len(transitions))  # 0..3
     plt.figure(figsize=(7,4))
+    plt.axhline(y=0, color='gray', linestyle='dashed')
     for res in all_results:
-        chi_vals, p_vals = compute_per_transition_chi_p(res['specialized'], res['other'])
+        chi_vals, p_vals = compute_per_transition_chi_p(res['specialized'], res['other'],res['cross'], cross, remove_cross=remove_cross)
         color = method_colors.get(res['method'], None)
         print(x)
         print(chi_vals)
@@ -86,17 +122,57 @@ def plot_transition_chi(all_results,
             if stars:
                 plt.text(xi, chi_v + (0.03 * max(chi_vals + [1])), stars,
                          ha='center', va='bottom', fontsize=10, color=color)
-    plt.xticks(x, transitions, rotation=0)
+    plt.xticks(x, transition_names, rotation=0)
     plt.xlabel("Layer transition")
     plt.ylabel("Chi-square (transition vs rest)")
+    
     plt.title(title)
     plt.legend(frameon=False)
     plt.tight_layout()
+    
     plt.savefig(save_path, dpi=200)
+    
     if show:
         plt.show()
     plt.close()
     print(f"Saved plot with significance stars to {save_path}")
+    #---------------------Plot pie charts-------------------------------------------
+    import os
+    transition_names = ["Layer 1-2", "Layer 2-3", "Layer 3-4", "Layer 4-5"]
+    out_dir = os.path.dirname(save_path) or '.'
+    os.makedirs(out_dir, exist_ok=True)
+    for res in all_results:
+        fig, sub_plots = plt.subplots(1, 4, figsize=(10, 3))
+        counts_cls = np.array(res['cls'], dtype=float)
+        counts_grasp = np.array(res['grasp'], dtype=float)
+        counts_no_pref = np.array(res['other'], dtype=float) - np.array(res['cross'], dtype=float)
+        counts_cross = np.array(res['cross'], dtype=float)
+        for i, ax in enumerate(sub_plots):
+            vals = [counts_cls[i],counts_grasp[i], counts_no_pref[i], counts_cross[i]]
+            total = sum(vals)
+            percents = np.array(vals)/total
+            wedges, labels, autopct = ax.pie(vals,
+                   colors=['red', 'blue', 'lightgray', 'purple'],autopct='%1.1f%%',
+       pctdistance=1.25,textprops={'fontsize': 8})
+            print(autopct)
+            fix_labels(autopct, tooclose = 0.15, sepfactor=3.5)
+            ax.set_title(transition_names[i])
+        method_fname = f"{res['method']}_pie.png"
+        save_p = os.path.join(out_dir, method_fname)
+        fig.suptitle(res['method'])
+        handles = [
+            Patch(facecolor='lightgray', edgecolor='k', label='no preference'),
+            Patch(facecolor='red', edgecolor='k', label='classification'),
+            Patch(facecolor='blue', edgecolor='k', label='grasp'),
+            Patch(facecolor='purple', edgecolor='k', label='cross'),
+        ]
+        fig.legend(handles=handles, loc='lower right', frameon=False, fontsize=10)
+        fig.savefig(save_p, dpi=300)
+
+        plt.close(fig)
+        print(f"Saved pie chart to {save_p}")
+    
+    
 layers = ['rgb_features.0', 'features.0','features.4','features.7','features.10']
 
 grasp_kernels=[[62,17,],[19,2,7],[42,13,22,5,50],[41,22,21,13,12],[1,45,42,20]]
@@ -142,64 +218,13 @@ def get_refined_graphs(graph_list, add_start=False, refinedness = 6):
                         pass
     return refined_graph_list
 
-
-def graph_edge_weight_vector(graph, edge_order=None, default=0.0, weight_attr='weight'):
-    """Returns a vector of edge weights in a consistent order."""
-    if edge_order is None:
-        edge_order = sorted(graph.edges())
-    vector = []
-    for u, v in edge_order:
-        #and (not "features.0" in u)
-        #(not "rgb" in u) and
-        if graph.has_edge(u, v) and "features.7" in v:
-            w = graph[u][v].get(weight_attr, default)
-            vector.append(w)
-        else:
-            continue
-        
-            
-    return np.array(vector), edge_order
-
-def pearson_graph_similarity(G1, G2, weight_attr='weight'):
-    """Computes Pearson correlation between the edge weight vectors of two graphs."""
-    # Union of all edges from both graphs
-    all_edges = sorted(set(G1.edges()) & set(G2.edges()))
-
-    vec1, edge_1 = graph_edge_weight_vector(G1, edge_order=all_edges, weight_attr=weight_attr)
-    vec2, edge_2 = graph_edge_weight_vector(G2, edge_order=all_edges, weight_attr=weight_attr)
-    assert(edge_1 == edge_2)
-    # Handle edge case: if all values are constant, correlation is undefined
-    if np.std(vec1) == 0 or np.std(vec2) == 0:
-        return 0.0
-    print(f"Correlating {len(vec1)} edge weights between the two graphs.")
-
-    # Plot the correlation
-    import matplotlib.pyplot as plt
-    plt.figure(figsize=(6, 6))
-    plt.scatter(vec1, vec2, alpha=0.6)
-    plt.xlabel("Graph 1 edge weights")
-    plt.ylabel("Graph 2 edge weights")
-    plt.title("Edge Weight Correlation")
-    plt.grid(True)
-    plt.tight_layout()
-    plt.savefig("edge_weight_correlation.png")
-    plt.close()
-    r, p = pearsonr(vec1, vec2)
-    return r, p 
-def print_edges(G):
-    edges = sorted(G.edges(data=True), key=lambda x: -abs(x[2]['weight']))
-    for src, tgt, data in edges[:20]:
-        print(f"{src} → {tgt}, weight = {data['weight']:.4f}")
-
-
-import scipy.stats as stats
 def build_node_types_advanced(shap_values,
                               method='z_ratio',
-                              z_thresh=0.5,
-                              cross_max=0.,
-                              ratio_high=0.6,
-                              ratio_low=0.4,
-                              effect_thresh=0.15,
+                              z_thresh=0.15,
+                              cross_max=0.15,
+                              ratio_high=0.3,
+                              ratio_low=0.3,
+                              effect_thresh=0.5,
                               top_k=20):
     """
     Advanced node typing.
@@ -224,9 +249,11 @@ def build_node_types_advanced(shap_values,
          (shap_values.max(axis=1, keepdims=True) - shap_values.min(axis=1, keepdims=True) + 1e-8)
 
     node_types = {}
+    layer_count = [64,32,64,64,64]
     for l, layer in enumerate(layers):
         # Determine actual channel count if variable; else assume K_max
         k_count = shap_values[l,:,0].shape[0]
+        k_count = layer_count[l]
         vals_class = shap_values[l,:k_count,0]
         vals_grasp = shap_values[l,:k_count,1]
 
@@ -238,11 +265,16 @@ def build_node_types_advanced(shap_values,
             from sklearn.mixture import GaussianMixture
             diff = vals_class - vals_grasp
             diff = diff.reshape(-1,1)
-            gmm = GaussianMixture(n_components=3, random_state=0)
+            gmm = GaussianMixture(n_components=3, max_iter=50)
             gmm.fit(diff)
+            
             # Order components by mean
             means = gmm.means_.flatten()
+            
             order = np.argsort(means)
+            if l == 4:
+                print(means)
+                exit()
             comp_to_label = {order[0]:'grasp', order[1]:'no_pref', order[2]:'class'}
             comps = gmm.predict(diff)
 
@@ -264,19 +296,20 @@ def build_node_types_advanced(shap_values,
                 zc = z[l,k,0]; zg = z[l,k,1]
                 rc = mm[l,k,0] / (mm[l,k,0] + mm[l,k,1] + 1e-8)
                 # Dual criteria
-                if (zc >= z_thresh) and (zg <= cross_max) and (rc >= ratio_high):
+                if (zc >= z_thresh) and (zg <= cross_max): #  
                     node_types[name] = 'class'
-                elif (zg >= z_thresh) and (zc <= cross_max) and (rc <= ratio_low):
+                elif (zg >= z_thresh) and (zc <= cross_max): #  and (rc <= ratio_low)
                     node_types[name] = 'grasp'
                 else:
                     node_types[name] = 'no_pref'
 
             elif method == 'effect':
+                rc = mm[l,k,0] / (mm[l,k,0] + mm[l,k,1] + 1e-8)
                 c = vals_class[k]; g = vals_grasp[k]
                 d = (c - g) / (abs(c) + abs(g) + 1e-8)
-                if d >= effect_thresh:
+                if d >= effect_thresh and (rc >= ratio_high):
                     node_types[name] = 'class'
-                elif d <= -effect_thresh:
+                elif d <= -effect_thresh and (rc <= ratio_low):
                     node_types[name] = 'grasp'
                 else:
                     node_types[name] = 'no_pref'
@@ -365,11 +398,17 @@ def count_specialized_edges_per_transition(graph, node_types, weight=True):
     transitions = []
     spec_counts = []
     other_counts = []
+    cross_counts = []
+    grasp_counts = []
+    cls_counts = []
     for i in range(len(layers)-1):
         Ls = layers[i]
         Lt = layers[i+1]
         spec = 0
+        cls = 0
+        grasp = 0
         other = 0
+        cross = 0
         for u,v,data in graph.edges(data=True):
             lu = node_layer(u)
             lv = node_layer(v)
@@ -378,15 +417,30 @@ def count_specialized_edges_per_transition(graph, node_types, weight=True):
                 t_v = node_types.get(v,'no_pref')
                 # specialized edge: both specialized and same type (class->class OR grasp->grasp)
                 if t_u == t_v and t_u in ('class','grasp'):
-                    if weight: spec += data['weight']
+                    if weight: spec += abs(data['weight'])
                     else: spec += 1 
+                    if t_u == "class":
+                        if weight: cls += abs(data['weight'])
+                        else: cls += 1
+                    else:
+                        if weight: grasp += abs(data['weight'])
+                        else: grasp += 1
                 else:
-                    if weight: other += data['weight']
-                    else: other += 1 
+                    if weight: 
+                        if (t_u == 'class' and t_v =='grasp') or (t_v == 'class' and t_u =='grasp'):
+                            cross += abs(data['weight'])
+                        other += abs(data['weight'])
+                    else: 
+                        if (t_u == 'class' and t_v =='grasp') or (t_v == 'class' and t_u =='grasp'):
+                            cross += 1 
+                        other += 1 
         transitions.append(f"{Ls}->{Lt}")
         spec_counts.append(spec)
         other_counts.append(other)
-    return transitions, spec_counts, other_counts
+        cross_counts.append(cross)
+        cls_counts.append(cls)
+        grasp_counts.append(grasp)
+    return transitions, spec_counts, other_counts, cross_counts, cls_counts, grasp_counts
 # ...existing code...
 
 from datetime import datetime
@@ -397,6 +451,223 @@ METHOD_DESCRIPTIONS = {
     'effect':    "Uses normalized difference (effect size style); assigns if |(c-g)/( |c|+|g| )| exceeds threshold; otherwise no_pref.",
     'mixture':   "Fits 3-component Gaussian Mixture to (class−grasp) differences; extreme components => specialized, middle => no_pref."
 }
+SIZES = [128, 32,64,64,64]
+
+def _pair_sizes(layer_i):
+  # Determine (src_size, tgt_size) for the given layer index.
+  # layer_i == -1 corresponds to the first split layer: RGB(3) x 128
+  if layer_i == -1:
+    return 3, SIZES[0]
+  return SIZES[layer_i], SIZES[layer_i + 1]
+
+def convert_value_to_index(src, tgt, layer_i):
+  src_size, tgt_size = _pair_sizes(layer_i)
+  if not (isinstance(src, (int, np.integer)) and isinstance(tgt, (int, np.integer))):
+    raise TypeError("src and tgt must be integers")
+  if not (0 <= src < src_size and 0 <= tgt < tgt_size):
+    raise ValueError(f"(src, tgt)=({src}, {tgt}) out of range for layer {layer_i} "
+                     f"(src: 0..{src_size-1}, tgt: 0..{tgt_size-1})")
+  return int(src * tgt_size + tgt)
+
+def compare_specialized_edge_to_shapley():
+    shap_values = np.load("shap_arrays/shap_values_depth.npy")
+    layer_sizes = [128,32,64,64,64]
+    # Per-layer z-score per task
+    z = np.zeros_like(shap_values, dtype=float)
+    # FIX: remove trailing commas (they made tuples)
+    z_thresh = 0.15
+    cross_max = 0.15
+    for l in range(5):
+        for t in range(2):
+            v = shap_values[l,:layer_sizes[l],t]
+            z[l,:layer_sizes[l],t] = (v - v.mean()) / (v.std() + 1e-8)
+
+    per_layer_estimated_connection_scores = []
+    conn_shap_values = np.load("shap_arrays/shap_values_connections.npy")
+    sums = np.abs(np.sum(conn_shap_values, axis=1, keepdims=True))  # shape: (num_layers, 1, 2)
+    print(sums)
+    # Normalize per-layer connection shap (optional scaling factor keeps magnitudes readable)
+    conn_shap_values = (conn_shap_values / (sums + 1e-8)) * 1000
+
+    # Collect per-type lists for each layer:
+    # 0=class, 1=grasp, 2=cross, 3=no_pref; entries are tuples: (cls_val, grasp_val)
+    shap_scores_per_type = []
+    average_shap_scores_per_type = np.zeros((4,4,2))
+
+    for layer_i in range(4):
+        shap_scores_per_type.append([[],[],[],[]])
+        estimated_connection_scores = np.zeros((layer_sizes[layer_i], layer_sizes[layer_i+1]))
+        for src in range(layer_sizes[layer_i]):
+            for tgt in range(layer_sizes[layer_i+1]):
+                estimated_connection_scores[src, tgt] = abs((z[layer_i, src, 0] - z[layer_i, src, 1])  \
+                    * (z[layer_i+1, tgt, 0] - z[layer_i + 1, tgt, 1]))
+
+                zc_src = z[layer_i,src,0]; zg_src = z[layer_i,src,1]
+                zc_tgt = z[layer_i + 1,tgt,0]; zg_tgt = z[layer_i + 1,tgt,1]
+
+                # Node typing for src/tgt
+                if (zc_src >= z_thresh) and (zg_src <= cross_max):
+                    src_type = 'class'
+                elif (zg_src >= z_thresh) and (zc_src <= cross_max):
+                    src_type = 'grasp'
+                else:
+                    src_type = 'no_pref'
+                if (zc_tgt >= z_thresh) and (zg_tgt <= cross_max):
+                    tgt_type = 'class'
+                elif (zg_tgt >= z_thresh) and (zc_tgt <= cross_max):
+                    tgt_type = 'grasp'
+                else:
+                    tgt_type = 'no_pref'
+
+                conn_shap_index = convert_value_to_index(src, tgt, layer_i)
+                conn_tuple = tuple(conn_shap_values[layer_i + 1, conn_shap_index, :])  # (cls, grasp)
+
+                if "no_pref" in [src_type, tgt_type]:
+                    shap_scores_per_type[layer_i][3].append(conn_tuple)
+                elif src_type == tgt_type:
+                    if src_type == "class":
+                        shap_scores_per_type[layer_i][0].append(conn_tuple)
+                    else:
+                        shap_scores_per_type[layer_i][1].append(conn_tuple)
+                else:
+                    shap_scores_per_type[layer_i][2].append(conn_tuple)
+
+        per_layer_estimated_connection_scores.append(estimated_connection_scores)
+
+        # Layer-wise averages (kept as before)
+        for type_i in range(len(shap_scores_per_type[layer_i])):
+            for grasp_flag in range(2):
+                vals = [score[grasp_flag] for score in shap_scores_per_type[layer_i][type_i]]
+                average_shap_scores_per_type[layer_i, type_i, grasp_flag] = np.sum(vals) / (len(vals) + 1e-8)
+
+    # Print sanity
+    for i in range(4):
+        print(f"Layer {i}->{i+1} -----------------")
+        print(average_shap_scores_per_type[i,:,0])
+        print(average_shap_scores_per_type[i,:,1])
+
+    # ---------- Single figure: 4 layers stacked vertically, two bars per layer (cls, grasp) ----------
+    import os
+    import matplotlib.pyplot as plt
+    os.makedirs("vis", exist_ok=True)
+
+    type_names = ["Classification", "Grasp", "Cross", "No Preference"]
+    colors = ["#d62728", "#1f77b4", "#9467bd", "#7f7f7f"]
+
+    def mean_ci(vals):
+        vals = np.array(vals, dtype=float)
+        if vals.size == 0:
+            return 0.0, 0.0
+        m = float(vals.mean())
+        s = float(vals.std(ddof=1)) if vals.size > 1 else 0.0
+        se = s / np.sqrt(max(1, vals.size))
+        half = 1.96 * se
+        return m, half
+
+    fig, axes = plt.subplots(nrows=4, ncols=2, figsize=(10, 12), sharey=False)
+
+    for layer_i in range(4):
+        # Separate values per connection type for each task
+        vals_cls = [[tup[0] for tup in shap_scores_per_type[layer_i][t_idx]] for t_idx in range(4)]
+        vals_gr  = [[tup[1] for tup in shap_scores_per_type[layer_i][t_idx]] for t_idx in range(4)]
+
+        means_cls, halfs_cls, ns_cls = [], [], []
+        means_gr,  halfs_gr,  ns_gr  = [], [], []
+        for t_idx in range(4):
+            m, h = mean_ci(vals_cls[t_idx]); means_cls.append(m); halfs_cls.append(h); ns_cls.append(len(vals_cls[t_idx]))
+            m, h = mean_ci(vals_gr[t_idx]);  means_gr.append(m);  halfs_gr.append(h);  ns_gr.append(len(vals_gr[t_idx]))
+
+        x = np.arange(4)
+        axL = axes[layer_i, 0]
+        axR = axes[layer_i, 1]
+
+        # Classification subplot (left)
+        axL.bar(x, means_cls, yerr=halfs_cls, color=colors, capsize=4)
+        for xi, (m, h, n) in enumerate(zip(means_cls, halfs_cls, ns_cls)):
+            axL.text(xi, m + h + 0.02 * (max(abs(m)+h for m, h in zip(means_cls, halfs_cls)) + 1e-8),
+                     f"n={n}", ha='center', va='bottom', fontsize=8)
+        axL.set_xticks(x)
+        axL.set_xticklabels(type_names, rotation=0)
+        if layer_i == 0:
+            axL.set_title("Classification")
+        axL.set_ylabel(f"Layer {layer_i} -> {layer_i+1}\nConnection Shapley Score")
+        # Center y=0 in the plot and increase ylim by 20%
+        maxval = max([abs(m)+h for m, h in zip(means_cls, halfs_cls)] + [1e-8])
+        axL.set_ylim(-1.2*maxval, 1.2*maxval)
+        axL.axhline(0, color='gray', linewidth=1)
+
+        # Grasp subplot (right)
+        axR.bar(x, means_gr, yerr=halfs_gr, color=colors, capsize=4)
+        for xi, (m, h, n) in enumerate(zip(means_gr, halfs_gr, ns_gr)):
+            axR.text(xi, m + h + 0.02 * (max(abs(m)+h for m, h in zip(means_gr, halfs_gr)) + 1e-8),
+                     f"n={n}", ha='center', va='bottom', fontsize=8)
+        axR.set_xticks(x)
+        axR.set_xticklabels(type_names, rotation=0)
+        if layer_i == 0:
+            axR.set_title("Grasp")
+        # Center y=0 in the plot and increase ylim by 20%
+        maxval_gr = max([abs(m)+h for m, h in zip(means_gr, halfs_gr)] + [1e-8])
+        axR.set_ylim(-1.2*maxval_gr, 1.2*maxval_gr)
+        axR.axhline(0, color='gray', linewidth=1)
+
+    fig.suptitle("Shapley Score by Connection Type per Layer")
+    fig.tight_layout(rect=[0, 0.03, 1, 0.97])
+    out_path_all = "vis/conn_type_bars_all_layers.png"
+    fig.savefig(out_path_all, dpi=200)
+    plt.close(fig)
+    print(f"Saved {out_path_all}")
+
+    # ---------- t-tests between all 4 types (across all layers and tasks) ----------
+    from scipy import stats
+    # Pool across all layers and both tasks
+    pooled_all = {name: [] for name in type_names}
+    for layer_i in range(4):
+        for t_idx, name in enumerate(type_names):
+            for tup in shap_scores_per_type[layer_i][t_idx]:
+                # Add both task values as separate observations
+                pooled_all[name].append(float(tup[0]))
+                pooled_all[name].append(float(tup[1]))
+
+    # Summary stats
+    summary_lines = []
+    summary_lines.append("Connection-type Shapley t-tests (pooled across layers and tasks)\n")
+    for name in type_names:
+        arr = np.array(pooled_all[name], dtype=float)
+        summary_lines.append(f"{name:>8}: n={arr.size}, mean={arr.mean():.6f}, std={arr.std(ddof=1):.6f}")
+
+    # Pairwise Welch t-tests
+    pairs = []
+    for i in range(4):
+        for j in range(i+1, 4):
+            a = np.array(pooled_all[type_names[i]], dtype=float)
+            b = np.array(pooled_all[type_names[j]], dtype=float)
+            if a.size > 1 and b.size > 1:
+                tstat, pval = stats.ttest_ind(a, b, equal_var=False)
+            else:
+                tstat, pval = np.nan, np.nan
+            pairs.append((type_names[i], type_names[j], tstat, pval))
+
+    summary_lines.append("\nPairwise Welch t-tests:")
+    for (a, b, t, p) in pairs:
+        summary_lines.append(f"{a:>8} vs {b:<8}: t={t:.4f}, p={p:.4g}")
+
+    # Optional: FDR correction across the 6 tests
+    try:
+        from statsmodels.stats.multitest import multipletests
+        pvals = [p for (_, _, _, p) in pairs]
+        rej, p_adj, _, _ = multipletests(pvals, method='fdr_bh')
+        summary_lines.append("\nFDR (BH) adjusted p-values:")
+        for k, (a, b, _, _) in enumerate(pairs):
+            summary_lines.append(f"{a:>8} vs {b:<8}: p_adj={p_adj[k]:.4g}, reject={bool(rej[k])}")
+    except Exception as e:
+        summary_lines.append(f"\nFDR correction skipped: {e}")
+
+    # Write report
+    os.makedirs("vis", exist_ok=True)
+    report_path = "vis/ttest_shap_connection_types.txt"
+    with open(report_path, "w") as f:
+        f.write("\n".join(summary_lines))
+    print(f"Wrote t-test summary to {report_path}")
 
 def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
                                   refinedness=10,
@@ -412,7 +683,10 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
     counts_on: 'base' or 'refined' - which graph to use for edge counting.
     """
     import numpy as np
+
     shap_values = np.load("shap_arrays/shap_values.npy")
+    shap_values[:,:,0] /= 65
+    shap_values[:,:,1] /= 81.5
     base_graph = pickle.load(open(graph_path,'rb'))
     refined = get_refined_graphs([base_graph], add_start=False, refinedness=refinedness)[0]
 
@@ -427,7 +701,7 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
         if print_details:
             print(f"\n=== Node typing method = {m} ===")
         node_types = build_node_types_advanced(shap_values, method=m)
-        transitions, spec_counts, other_counts = count_specialized_edges_per_transition(graph_for_counts, node_types, weight=weight)
+        transitions, spec_counts, other_counts, cross_counts, cls_counts, grasp_counts = count_specialized_edges_per_transition(graph_for_counts, node_types, weight=weight)
 
         contingency = np.array([spec_counts, other_counts]).T  # rows: transitions, cols: [spec, other]
         chi2, p, dof, expected = stats.chi2_contingency(contingency)
@@ -486,6 +760,9 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
             'transitions': transitions,
             'specialized': spec_counts,
             'other': other_counts,
+            'cross': cross_counts,
+            'grasp': grasp_counts,
+            'cls': cls_counts,
             'proportions': proportions,
             'contingency': contingency.tolist(),
             'expected': expected.tolist(),
@@ -505,17 +782,24 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
             for res in all_results:
                 f.write(f"Method: {res['method']}\n")
                 f.write(f"Description: {res['description']}\n")
-                f.write(f"Chi-square={res['chi2']:.3f}, dof={res['dof']}, p={res['p']:.4g}\n")
-                logi = res['logistic']
-                if logi['ok']:
-                    f.write(f"Logistic trend: slope={logi['slope']:.4f}, p={logi['p']:.4g}\n")
-                else:
-                    f.write(f"Logistic trend: unavailable ({logi['error']})\n")
-                f.write("Transition\tSpec\tOther\tProp_spec\tExp_spec\tExp_other\n")
-                for i,tr in enumerate(res['transitions']):
-                    exp_spec, exp_other = res['expected'][i]
-                    f.write(f"{tr}\t{res['specialized'][i]}\t{res['other'][i]}\t"
-                            f"{res['proportions'][i]:.3f}\t{exp_spec:.2f}\t{exp_other:.2f}\n")
+                f.write(f"Total Chi-square={res['chi2']:.3f}, dof={res['dof']}, p={res['p']:.4g}\n")
+                f.write("Transition\t\tSpec\tNo_pref\tCross\tChi2\tCross Chi2\n")
+                trans_chis, trans_ps = compute_per_transition_chi_p(res['specialized'], res['other'], res['cross'], remove_cross=True)
+                cross_trans_chis, cross_trans_ps = compute_per_transition_chi_p(res['specialized'], res['other'], res['cross'], cross=True, remove_cross=True)
+                for arr in [trans_chis, trans_ps, cross_trans_chis, cross_trans_ps]: arr.insert(0, 'N/A')
+                for i, tr in enumerate(res['transitions']):
+                    cross_val = res['cross'][i]
+                    trans_chi_val = trans_chis[i]
+                    trans_p_val = trans_ps[i]
+                    cross_trans_chi_val = cross_trans_chis[i]
+                    cross_trans_p_val = cross_trans_ps[i]
+                    # Safely format floats, otherwise print as string
+                    cross_str = f"{cross_val:.3f}" if isinstance(cross_val, (float, int)) else str(cross_val)
+                    trans_chi_str = f"{trans_chi_val:.3f}" if isinstance(trans_chi_val, (float, int)) else str(trans_chi_val)
+                    trans_p_str = f"{trans_p_val:.4g}" if isinstance(trans_p_val, (float, int)) else str(trans_p_val)
+                    cross_trans_chi_str = f"{cross_trans_chi_val:.3f}" if isinstance(cross_trans_chi_val, (float, int)) else str(cross_trans_chi_val)
+                    cross_trans_p_str = f"{cross_trans_p_val:.4g}" if isinstance(cross_trans_p_val, (float, int)) else str(cross_trans_p_val)
+                    f.write(f"{tr}\t{res['specialized'][i]:.3f}\t{(res['other'][i] - res['cross'][i]):.3f}\t{cross_str}\t{trans_chi_str}, (p={trans_p_str})\t{cross_trans_chi_str}, (p={cross_trans_p_str})\t\n")
                 f.write("\n" + "-"*70 + "\n\n")
         if print_details:
             print(f"\nAll results written to {out_path}")
@@ -528,6 +812,10 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
 # Example call (adjust as needed):
 # ---------------- Run the analysis + visualize ----------------
 weight = True
+cross = False
+remove_cross = True
+compare_specialized_edge_to_shapley()
+exit()
 results = run_chi_square_specialization(
     graph_path='graphs/just_weights3.pickle',
     refinedness=32,
@@ -536,5 +824,8 @@ results = run_chi_square_specialization(
     counts_on='base',
     weight=weight
 )
-plot_transition_chi(results, save_path=f'{'weight' if weight else 'count'}_chi_per_transition_significance.png', title=f"{'Weighted' if weight else 'Unweighted'}Per-transition Chi-sqaure")
+plot_transition_chi(results, 
+                    save_path=f'vis/chi2/remove_cross_{'weight' if weight else 'count'}_{'cross_' if cross else ''}chi_per_transition_significance.png', 
+                    title=f"{'Weighted' if weight else 'Unweighted'}Per-transition Chi-sqaure", 
+                    cross=cross, remove_cross=remove_cross)
 # ...existing code...
