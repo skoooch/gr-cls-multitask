@@ -13,7 +13,7 @@ from shapley_debug import get_model
 from utils.utils import get_correct_preds, get_acc, get_correct_cls_preds_from_map
 from utils.grasp_utils import get_correct_grasp_preds
 import time
-from training.single_task.evaluation import denormalize_grasp, map2singlegrasp  
+from training_utils.evaluation import denormalize_grasp, map2singlegrasp  
 params = Params()
 LAYERS = ['first','features.0','features.4', 'features.7', 'features.10']
 SIZES = [128,32,64,64,64]

@@ -13,7 +13,7 @@ from tqdm import tqdm
 from torchsummary import summary
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from data_processing.data_loader_v2 import DataLoader
-from training.single_task.evaluation import get_cls_acc, get_grasp_acc
+from training_utils.evaluation import get_cls_acc, get_grasp_acc
 from utils.parameters import Params
 
 params = Params()
