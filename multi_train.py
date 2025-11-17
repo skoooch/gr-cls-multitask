@@ -40,8 +40,8 @@ from utils.parameters import Params
 from data_processing.data_loader_v2 import DataLoader
 from utils.utils import epoch_logger, log_writer, get_correct_cls_preds_from_map, get_acc
 from utils.grasp_utils import get_correct_grasp_preds_from_map
-from training.single_task.evaluation import get_cls_acc, get_grasp_acc
-from training.single_task.loss import MapLoss, DistillationLoss
+from training_utils.evaluation import get_cls_acc, get_grasp_acc
+from training_utils.loss import MapLoss, DistillationLoss
 
 SEED=42
 params = Params() 
