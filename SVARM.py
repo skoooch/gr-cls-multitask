@@ -1,6 +1,5 @@
 
 import numpy as np
-
 from utils.experiment_util import normalize_shapley_value
 import sys
 import torch
@@ -10,7 +9,7 @@ from data_processing.data_loader_v2 import DataLoader
 import math
 from utils.parameters import Params
 import os
-from shapley_debug_connections import get_model
+from shapley_debug import get_model
 from utils.utils import get_correct_preds, get_acc, get_correct_cls_preds_from_map
 from utils.grasp_utils import get_correct_grasp_preds
 import time
@@ -95,7 +94,7 @@ def remove_connections(model: nn.Module, layer: str, removed_connections: list) 
             src_idx = torch.tensor([src for src, tgt in removed_connections], dtype=torch.long)
             tgt_idx = torch.tensor([tgt for src, tgt in removed_connections], dtype=torch.long)
             W.data[tgt_idx, src_idx, :, :] = 0
-        W = orig_weights
+        
     return model, orig_weights
 def remove_connections_first(model: nn.Module, removed_connections: list) -> nn.Module:
     """
