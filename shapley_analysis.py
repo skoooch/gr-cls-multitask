@@ -340,7 +340,8 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
     confidence_intervals = []
     
     # data for each scatter plot
-    for layer in layers:
+    shap_vals = np.zeros((5,128,2))
+    for layer_i, layer in enumerate(layers):
         players = players_dict[layer]
         results_dict = results_dict_by_layer[layer]
 
@@ -357,13 +358,16 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
         task_1, task_2 = list(vals.keys())
         x = vals[task_1]
         y = vals[task_2]
+        shap_vals[layer_i, :len(x), 0] = x
+        shap_vals[layer_i, :len(y), 1] = y
         # print(len(x))
 
         r, p = get_r(players, results_dict, layer)
         r_values.append(r)
         confidence_intervals.append(p)
         scatter_data.append((x, y, r, layer, task_1, task_2))
-
+    np.save("shap_arrays/shap_values_depth.npy", shap_vals)
+    exit()
     # plot main correlation line
     fig, ax = plt.subplots(figsize=(10, 8))
     x_values = np.arange(1, len(r_values) + 1)

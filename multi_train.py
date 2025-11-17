@@ -58,21 +58,7 @@ paths.create_model_log_path()
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 # Load model
-#model = models.AlexnetMap_v3().to(params.DEVICE)
-#model = modelsGr.GrConvMap_v1().to(params.DEVICE)
-model =  Multi_AlexnetMap_v3().to('cpu')
-
-# Teacher model
-# pretrained_alexnet = alexnet(pretrained=True).to(params.DEVICE)
-# pretrained_alexnet.eval()
-# for weights in pretrained_alexnet.features.parameters():
-#     weights.requires_grad = False
-
-# Load checkpoint weights
-# checkpoint_name = 'alexnetGrasp_depthconcat_convtrans_top5_v4.3'
-# checkpoint_epoch = 50
-# checkpoint_path = os.path.join(params.MODEL_PATH, checkpoint_name, '%s_epoch%s.pth' % (checkpoint_name, checkpoint_epoch))
-# model.load_state_dict(torch.load(checkpoint_path))
+model =  Multi_AlexnetMap_v3().to(params.DEVICE)
 
 # Create DataLoader class
 data_loader = DataLoader(params.TRAIN_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT, seed=SEED)
@@ -95,9 +81,6 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
     train_correct = 1
     val_total = 1
     val_correct = 1
-    # Data loop for CLS training
-    #for step, (img, map, label) in enumerate(data_loader.load_batch()):
-    # Data loop for Grasp training
     
     image_data = enumerate(zip(data_loader.load_grasp_batch(), data_loader.load_batch()))
     values = (0,0)

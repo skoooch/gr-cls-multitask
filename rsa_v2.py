@@ -210,9 +210,9 @@ def perform_rsm_vis(times, time_region=0,task="class"):
     plt.savefig('vis/%s/ts%s_correlation_avr.png' % (task, (time_region+1)))   
     plt.clf()
         
-def visualize_rsm(rsm, suffix = "", title = "Recognition task-Related EEG RDM (175–225 ms) from Posterior Brain Regions"):
+def visualize_rsm(rsm, suffix = "", title = "Recognition task-Related EEG RDM (175–200 ms) from Posterior Brain Regions"):
     plt.figure(figsize=(8, 6))
-    im = plt.imshow(rsm, cmap='bwr', aspect='auto', vmin=0, vmax=1)
+    im = plt.imshow(rsm, aspect='auto')
     num_classes = 5
     mapping = {"A": "Figurine", "B": "Pen", "C": "Chair", "D":"Lamp", "E": "Plant"}
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
@@ -235,27 +235,39 @@ def visualize_rsm(rsm, suffix = "", title = "Recognition task-Related EEG RDM (1
     cbar.set_label('Dissimilarity')
     plt.title(title)
     plt.tight_layout()
-    plt.savefig(f"rsm_{suffix}.png")
-def time_eeg_rsm(task):
+    plt.savefig(f"rsm_{suffix}.png", dpi = 300)
+def time_eeg_rsm():
     time_bin = 5
-    data = get_data_matlab(task, avr=True, left=False)
-    data = np.array(list(data.values()))
-    activations_flat = []
-    zero_idx = np.where(timepoints == times[0][1])[0][0]
-    end_idx = np.where(timepoints == times[6][1])[0][0]
-    i = zero_idx
-    averaged_data = np.mean(data, axis=(0, 1,))
+    task_data = []
+    tp_file = 'data/timepoints_8_cls.csv'
+    timepoints = np.loadtxt(tp_file, delimiter=',') 
+    #convert desired timepoints into actual time points
+    desire_times = [(-100, 400)]
+    times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
+    for task in ["grasp", "class"]:
+        data = get_data_matlab(task, avr=True, left=False)
+        data = np.array(list(data.values()))
+        activations_flat = []
+        zero_idx = np.where(timepoints == times[0][0])[0][0]
+        end_idx = np.where(timepoints == times[0][1])[0][0]
+        i = zero_idx
+        averaged_data = np.mean(data, axis=(0, 1,))
 
-    while i + time_bin < end_idx:
-        activations_flat.append(averaged_data[i:i+time_bin].flatten())
-        i += time_bin
-    act_array = np.asarray(activations_flat)
+        while i + time_bin < end_idx:
+            activations_flat.append(averaged_data[i:i+time_bin].flatten())
+            i += time_bin
+        act_array = np.asarray(activations_flat)
+        task_data.append(act_array)
+    grasp_data = task_data[0]
+    cls_data = task_data[1]
 
-    rsm = squareform(pdist(act_array, metric="correlation"))  # EEG RSM is calculated here!!
+    # Compute cross-RSM between grasp and class data
+    # Each row in grasp_data is compared to each row in cls_data
+    rsm = 1 - np.corrcoef(grasp_data, cls_data)[:grasp_data.shape[0], grasp_data.shape[0]:]
     plt.figure(figsize=(8, 6))
     im = plt.imshow(rsm, cmap='bwr', aspect='auto', vmin=0, vmax=1)
-    plt.xlabel("Time from Stimulus Onset (ms)")
-    plt.ylabel("Time from Stimulus Onset (ms)")
+    plt.xlabel("Grasping EEG Data Across Time")
+    plt.ylabel("Classification EEG Data Across Time")
     # Set x and y axis ticks to a subset of ms given by timepoints (5-10 evenly spaced)
     num_ticks = min(10, act_array.shape[0])
     tick_indices = np.linspace(0, act_array.shape[0] - 1, num=num_ticks, dtype=int)
@@ -263,17 +275,25 @@ def time_eeg_rsm(task):
     plt.xticks(ticks=tick_indices, labels=ms_ticks)
     plt.yticks(ticks=tick_indices, labels=ms_ticks)  
     plt.gca().invert_yaxis()  # Reverse the y-axis direction
-    plt.title(f"RDM for EEG data across time - {'Recognition' if task == 'class' else 'Grasping'} Task - All Electrodes")
+    plt.title(f"RDM for EEG Data Across Time Between Tasks")
     cbar = plt.colorbar(im, fraction=0.046, pad=0.04)
     cbar.set_label('Dissimilarity')
     plt.tight_layout()
-    plt.savefig(f"rsm_{suffix}_full.png")
+    plt.savefig(f"rsm_across_tasks_time.png")
 def visualize_eeg_rsm(task):
-    data = get_data_matlab(task,avr=True, left = False)
+    data = get_data_matlab(task,avr=True)
     mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}
     label_order = [mapping[c] for c in ["A","B","C","D","E"]]
     activations_flat = []
-    time_period = (np.where(timepoints == times[3][0])[0][0], np.where(timepoints == times[3][1])[0][0])
+    desire_times = [(175,200)]  
+    #desire_times = [(-25,0),(0, 25),(25,50), (50, 75),(75,100),(100, 125),(125,150),(150, 175),(175,200), (200,225),(225,250),(250,275),(275,300), (300,325), (325,350), (350,375),(375,400)]
+    #timepoints are identical across the files so this can stay the same
+    tp_file = 'data/timepoints_8_cls.csv'
+    timepoints = np.loadtxt(tp_file, delimiter=',') 
+    #convert desired timepoints into actual time points
+    times = [(min(timepoints, key=lambda x:abs(x-tp[0])), min(timepoints, key=lambda x:abs(x-tp[1]))) for tp in desire_times]
+    
+    time_period = (np.where(timepoints == times[0][0])[0][0], np.where(timepoints == times[0][1])[0][0])
     points_per_object = {}
     for cat in label_order:
         points_per_object[cat] = 0
@@ -284,8 +304,27 @@ def visualize_eeg_rsm(task):
     act_array = np.asarray(activations_flat)
     
     result = squareform(pdist(act_array, metric="correlation")) #EEG RSM is calculated here!!
-    visualize_rsm(result, f"eeg_single", title = "Recognition task-Related EEG RDM (125–175 ms) from Posterior Brain Regions")
-      
+    visualize_rsm(result, f"eeg_single", title = "Recognition task-Related EEG RDM (175–200 ms) from Posterior Brain Regions")
+def correlate_eeg_by_task():
+    tasks_data = []
+    for task in ["grasp", "class"]:
+        data = get_data_matlab(task,avr=True, left = False)
+        mapping = {"A": "figurine", "B": "pen", "C": "chair", "D":"lamp", "E": "plant"}
+        label_order = [mapping[c] for c in ["A","B","C","D","E"]]
+        activations_flat = []
+        #time_period = (np.where(timepoints == times[3][0])[0][0], np.where(timepoints == times[3][1])[0][0])
+        points_per_object = {}
+        for cat in label_order:
+            points_per_object[cat] = 0
+            for object_data in data[cat]:
+                relevant_signal = object_data[:, :]
+                activations_flat.append(np.mean(relevant_signal, axis = 1))
+                points_per_object[cat] += 1
+        act_array = np.asarray(activations_flat)
+        tasks_data.append(act_array)
+    print(tasks_data[0].shape)
+    print(pearsonr(tasks_data[0].mean(axis =0), tasks_data[1].mean(axis=0)))
+    exit()
 def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suffix="plot", corr_type="pearson", avr=True, single = -1):
     """
     Compare the RSM of EEG data with the RSM of model data.
@@ -411,12 +450,14 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     plt.figtext(0.1, 0.01, "*: p-value < 0.05", ha="center", fontsize=10)
     plt.savefig("vis/rsm_correlation_1/%s_%s_%s" % (task, name_suffix, corr_type), dpi=300)
 
+
+visualize_eeg_rsm("class")
+exit()
 suffix = sys.argv[1]
 corr_type = sys.argv[2]
 
 
-# time_eeg_rsm(task)
-# exit()
+
 
 try: 
     model_path = sys.argv[3]
