@@ -22,3 +22,4 @@ dump
 *goodale/trained_models/*
 !shap_arrays/*
 *get-pip.py
+goodale/
