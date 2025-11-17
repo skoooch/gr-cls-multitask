@@ -9,7 +9,6 @@ import networkx as nx
 from tqdm import tqdm
 import sys
 import os
-from graph_analysis_shapley import normalize_edge_weights
 from own_images import load_images_to_arrays
 params = Params()
 SEED=42
