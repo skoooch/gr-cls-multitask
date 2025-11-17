@@ -16,9 +16,7 @@ from PIL import Image, ImageDraw
 
 from utils.parameters import Params
 from data_processing.data_loader_v2 import DataLoader
-from tqdm import tqdm
 from utils.utils import get_correct_preds, get_acc, get_correct_cls_preds_from_map
-from utils.grasp_utils import get_correct_grasp_preds_from_map, single_grasp_to_bboxes
 from utils.grasp_utils import get_correct_grasp_preds, grasps_to_bboxes, box_iou, map2grasp, get_max_grasp
 
 params = Params()
