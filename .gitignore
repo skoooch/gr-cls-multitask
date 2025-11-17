@@ -5,6 +5,7 @@
 *.obj
 *__pycache__/
 *.npy
+*.csv
 *_mask.png
 *_grasps.txt
 *.tiff
@@ -20,5 +21,4 @@ dump
 *.mat
 *goodale/trained_models/*
 !shap_arrays/*
-!logs/svarm_run1/*
 *get-pip.py
