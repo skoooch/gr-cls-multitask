@@ -9,7 +9,6 @@ import torch
 import numpy as np
 from utils.parameters import Params
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
-from training_utils.evaluation import get_cls_acc, get_grasp_acc, visualize_grasp, visualize_cls
 from torchvision.utils import make_grid
 params = Params()
 
