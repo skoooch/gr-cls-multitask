@@ -29,7 +29,7 @@ import time
 import sys
 from utils.parameters import Params
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
-from training.single_task.evaluation import get_cls_acc, get_grasp_acc, visualize_grasp, visualize_cls
+from training_utils.evaluation import get_cls_acc, get_grasp_acc, visualize_grasp, visualize_cls
 
 params = Params()
 SEED=42

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib import font_manager
 from utils.parameters import Params
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
-from training.single_task.evaluation import get_cls_acc, get_grasp_acc, denormalize_grasp, map2singlegrasp
+from training_utils.evaluation import get_cls_acc, get_grasp_acc, denormalize_grasp, map2singlegrasp
 import numpy as np
 import pandas as pd
 from statsmodels.stats.anova import AnovaRM

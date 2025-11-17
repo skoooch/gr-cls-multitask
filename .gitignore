@@ -1,7 +1,7 @@
 *.pth
 !*final.pth
 !vis/shap/*
-!features/*
+features/
 *.obj
 *__pycache__/
 *.npy
@@ -23,3 +23,4 @@ dump
 !shap_arrays/*
 *get-pip.py
 goodale/
+features_top_5/
