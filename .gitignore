@@ -1,5 +1,6 @@
 *.pth
 !*final.pth
+*probe_final.pth
 !vis/shap/*
 features/
 *.obj
@@ -24,3 +25,4 @@ dump
 *get-pip.py
 goodale/
 features_top_5/
+task_rep_weights/*
