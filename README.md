@@ -54,9 +54,6 @@ For multi-task model, run `multi_train.py`.
 
 `trained-models/`
 
-## Goodale
-remove from this repo ?
-
 ## Neuron Shapely
 Descibr describe describe.
 
