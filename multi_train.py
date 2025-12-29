@@ -43,10 +43,10 @@ from utils.grasp_utils import get_correct_grasp_preds_from_map
 from training_utils.evaluation import get_cls_acc, get_grasp_acc
 from training_utils.loss import MapLoss, DistillationLoss
 
-SEED=42
+
 params = Params() 
 paths = Path()
-
+SEED = params.SEED
 # Create <trained-models> directory
 paths.create_model_path()
 # Create directory for training logs
@@ -91,7 +91,7 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
         output_grp = model(img_grp, is_grasp=True)
         loss_grp = MapLoss(output_grp, map_grp)
         # Loss fn for CLS/Grasp training
-        loss = (params.loss_weight)*loss_grp + (2 - params.loss_weight) * loss_cls
+        loss = (params.LOSS_WEIGHT)*loss_grp + (2 - params.LOSS_WEIGHT) * loss_cls
         # Distillation loss (experimental)
         #distill_loss = DistillationLoss(img, model, pretrained_alexnet, model_s_type='alexnetMap', model_t_type='alexnet')
         #loss = loss + distill_loss * params.DISTILL_ALPHA
@@ -136,7 +136,7 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
     # Write epoch loss stats to log file
     epoch_logger(params.MODEL_NAME, epoch, train_history, val_history, test_loss, train_acc, val_acc, test_acc, c_train_history, c_val_history, c_test_loss, c_train_acc, c_val_acc, c_test_acc)
     # Save checkpoint model -- 'trained-models/<model_name>/<model_name>_epoch<epoch>.pth'
-    torch.save(model.state_dict(), os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_epoch{epoch}.pth"))
+    torch.save(model.state_dict(), os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_epoch{epoch}.pth"))
 
 #Save final epoch model
-torch.save(model.state_dict(), os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_final.pth"))
+torch.save(model.state_dict(), os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth"))

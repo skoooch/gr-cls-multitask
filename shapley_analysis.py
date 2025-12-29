@@ -17,6 +17,7 @@ R = 100.
 DELTA = 0.2
 
 DIR = 'shap'
+params = Params()
 from scipy.stats import norm
 
 def fisher_z_transform(r):
@@ -161,8 +162,10 @@ def instatiate_chosen_players(directory, players):
 
 def get_results_list(directory):
     results = []
+    print("new_list")
     for file in os.listdir(directory):
         if file.endswith('.h5'):
+            print(file)
             results.append(os.path.join(directory, file))
 
     return results
@@ -273,7 +276,7 @@ def plot_shapley_dist(players, results, model_type, layer):
     # ax.yaxis.grid(False)
     fig.suptitle("Shapley Values for %s on %s" % (layer, model_type))
 
-    plt.savefig('vis/shap/shapley_dist/shapley_dist_%s_%s.png' % (model_type, '_'.join(layer.split('.'))))
+    plt.savefig('vis/shap/shapley_dist/%d_shapley_dist_%s_%s.png' % (params.SEED, model_type, '_'.join(layer.split('.'))))
 
 
 def plot_shapley_conf_trend(players, results, model_type, layer):
@@ -366,8 +369,8 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
         r_values.append(r)
         confidence_intervals.append(p)
         scatter_data.append((x, y, r, layer, task_1, task_2))
-    np.save("shap_arrays/shap_values_depth.npy", shap_vals)
-    exit()
+    # np.save("shap_arrays/shap_values_depth.npy", shap_vals)
+    # exit()
     # plot main correlation line
     fig, ax = plt.subplots(figsize=(10, 8))
     x_values = np.arange(1, len(r_values) + 1)
@@ -405,12 +408,12 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
         inset_ax.set_ylabel(f'{task_2}', fontsize=6, labelpad=1)
         inset_ax.tick_params(axis='both', which='major', labelsize=6)
 
-    plt.savefig('vis/shap/layer_corr/combined_below_graph_black.png', dpi=300)
+    plt.savefig(f'vis/shap/layer_corr/{params.SEED}combined_below_graph_black.png', dpi=300)
 
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
-    model_name = params.MODEL_NAME
+    model_name = params.MODEL_NAME_SEED
 
     players_dict = {}
     results_dict_by_layer = {}
@@ -428,9 +431,7 @@ if __name__ == '__main__':
             results[model_type] = get_results_list(run_dir)
             players_dict[layer] = players
             results_dict_by_layer[layer] = results
-
         #plot_layer_by_task(players, results, layer)
-
     for model_type in TYPES:
         for layer in LAYERS:
             ## CB directory
@@ -441,9 +442,10 @@ if __name__ == '__main__':
             instatiate_chosen_players(run_dir, players)    
             results = get_results_list(run_dir)
            
-            #plot_shapley_dist(players, results, model_type, layer)
+            plot_shapley_dist(players, results, model_type, layer)
     
     #         plot_shapley_conf_trend(players, results, model_type, layer)
+    
     r_value = []
     confidence_intervals = []
     for layer in LAYERS:
@@ -489,5 +491,3 @@ if __name__ == '__main__':
     # plt.savefig('vis/shap/layer_corr/all_layers.png')
 
     plot_all_layer_scatter(players_dict, results_dict_by_layer, LAYERS)
-
-

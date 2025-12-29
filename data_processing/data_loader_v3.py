@@ -226,8 +226,12 @@ class DataLoader:
         colour_a_batch = []
         location_x_batch = []
         location_y_batch = []
+        angle_batch = []
+        comp_angle_batch = []
+        cos_batch = []
+        sin_batch = []
 
-        for i, (img, colour_r, colour_g, colour_b, colour_a, location_x, location_y)\
+        for i, (img, colour_r, colour_g, colour_b, colour_a, location_x, location_y, angle, comp_angle, sin2, cos2)\
                 in enumerate(self.load_task_rep()):
                     
             img_batch.append(img)
@@ -237,7 +241,10 @@ class DataLoader:
             colour_a_batch.append(colour_a)
             location_x_batch.append(location_x)
             location_y_batch.append(location_y)
-
+            angle_batch.append(angle)
+            comp_angle_batch.append(comp_angle)
+            cos_batch.append(cos2)
+            sin_batch.append(sin2)
             if (i + 1) % self.batch_size == 0:
                 yield (torch.stack(img_batch),
                     torch.tensor(colour_r_batch, dtype=torch.float32),
@@ -245,7 +252,11 @@ class DataLoader:
                     torch.tensor(colour_b_batch, dtype=torch.float32),
                     torch.tensor(colour_a_batch, dtype=torch.float32),
                     torch.tensor(location_x_batch, dtype=torch.float32),
-                    torch.tensor(location_y_batch, dtype=torch.float32))
+                    torch.tensor(location_y_batch, dtype=torch.float32),
+                    torch.tensor(angle_batch, dtype=torch.float32),
+                    torch.tensor(comp_angle_batch, dtype=torch.float32),
+                    torch.tensor(sin_batch, dtype=torch.float32),
+                    torch.tensor(cos_batch, dtype=torch.float32))
                 img_batch = []
                 colour_r_batch = []
                 colour_g_batch = []
@@ -253,6 +264,10 @@ class DataLoader:
                 colour_a_batch = []
                 location_x_batch = []
                 location_y_batch = []
+                angle_batch = []
+                comp_angle_batch = []
+                cos_batch = []
+                sin_batch = []
 
         if len(img_batch) > 0:
             yield (torch.stack(img_batch),
@@ -261,7 +276,11 @@ class DataLoader:
                 torch.tensor(colour_b_batch, dtype=torch.float32),
                 torch.tensor(colour_a_batch, dtype=torch.float32),
                 torch.tensor(location_x_batch, dtype=torch.float32),
-                torch.tensor(location_y_batch, dtype=torch.float32))
+                torch.tensor(location_y_batch, dtype=torch.float32),
+                torch.tensor(angle_batch, dtype=torch.float32),
+                torch.tensor(comp_angle_batch, dtype=torch.float32),
+                torch.tensor(sin_batch, dtype=torch.float32),
+                torch.tensor(cos_batch, dtype=torch.float32))
 
 
     def load_task_rep(self, include_depth=True):
@@ -281,7 +300,7 @@ class DataLoader:
             # Open Depth image with PIL
             img_d = np.load(open(os.path.join(img_path, img_name + '_perfect_depth.npy'), 'rb'))
             img_d = torch.tensor(img_d, dtype=torch.float32).to(self.device)
-
+            
             # Normalize and combine rgb with depth channel
             img_rgbd = self.process(img_rgb, img_d, include_depth=include_depth)
 
@@ -295,8 +314,11 @@ class DataLoader:
             colour_a = self.task_rep_data['colour_a'][i]
             location_x = self.task_rep_data['location_x'][i]
             location_y = self.task_rep_data['location_y'][i]
-            
-            yield (img_rgbd, colour_r, colour_g, colour_b, colour_a, location_x, location_y)
+            angle = self.task_rep_data['angle'][i]
+            comp_angle = self.task_rep_data['comp_angle'][i]
+            sin2 = self.task_rep_data['sin2'][i]
+            cos2 = self.task_rep_data['cos2'][i]
+            yield (img_rgbd, colour_r, colour_g, colour_b, colour_a, location_x, location_y, angle, comp_angle, sin2, cos2)
         
     def process(self, rgb, d, include_depth=True):
         """

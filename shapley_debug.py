@@ -17,7 +17,8 @@ from training_utils.evaluation import get_cls_acc, get_grasp_acc
 from utils.parameters import Params
 
 params = Params()
-
+LAYERS = ['first','features.0','features.4', 'features.7', 'features.10']
+SIZES = [128,32,64,64,64]
 def remove_players(model: nn.Module, layer: str, removed_idx: list) -> nn.Module:
     """
     Silence the impact of weights within the <layer> of the <model>, except those in <weights>.
@@ -44,7 +45,8 @@ def one_iteration(
     chosen_players=None,
     metric='accuracy', 
     task='grasp',
-    activations=None):
+    activations=None,
+    layer_i=0):
     '''One iteration of Neuron-Shapley algoirhtm.'''
     if chosen_players is None:
         chosen_players = np.arange(len(c.keys()))
@@ -59,11 +61,11 @@ def one_iteration(
 
     truncation_counter = 0
     old_val = init_val
-    shap_mask = torch.zeros(128)
+    shap_mask = torch.zeros(SIZES[layer_i])
     for idx in idxs:
         shap_mask[idx] = 1
         # partial_model = remove_players(model, layer, removing_players) 
-        new_val = get_acc(model, task=task, device=device, shap_mask=shap_mask, activations=activations)
+        new_val = get_acc(model, task=task, device=device, shap_mask=shap_mask, activations=activations, shap_layer=layer)
         marginals[c[idx]] = old_val - new_val
         old_val = new_val
         if metric == 'accuracy' and new_val <= truncation:
@@ -76,11 +78,11 @@ def one_iteration(
     return idxs.reshape((1, -1)), marginals.reshape((1, -1))
 
 
-def get_acc(model, shap_mask=[], activations=None, task='cls', device='cuda:0'):
+def get_acc(model, shap_mask=[], activations=None, task='cls', device='cuda:0', shap_layer="first"):
     if task == 'cls':
-        return get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=params.DATA_TRUNCATION, device=device, shap_mask=shap_mask, activations=activations)[0]
+        return get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=params.DATA_TRUNCATION, device=device, shap_mask=shap_mask, activations=activations, shap_layer=shap_layer)[0]
     elif task == 'grasp':
-        return get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=params.DATA_TRUNCATION, device=device, shap_mask=shap_mask, activations=activations)[0]
+        return get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, truncation=params.DATA_TRUNCATION, device=device, shap_mask=shap_mask, activations=activations,shap_layer=shap_layer)[0]
     else:
         raise ValueError('Invalid task!')
 
@@ -166,7 +168,7 @@ def instantiate_tmab_logs(players, log_dir):
 
     return mem_tmc, idxs_tmc
 
-def average_activations(model):
+def average_activations(model, MODEL_NAME, layer, layer_i):
     activations = []
     data_loader = DataLoader(params.TRAIN_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
     labels = data_loader.get_cls_id()
@@ -179,26 +181,35 @@ def average_activations(model):
             rgb = model.rgb_features(rgb)
             d = model.d_features(d)
             x = torch.cat((rgb, d), dim=1)
-            activations.append(x[0].cpu().detach().numpy())
+            if layer == "first":
+                activations.append(x[0].cpu().detach().numpy())
+            else:
+                for j in range(len(model.features)):
+                    x = model.features[j](x)
+                    if j == int(layer.split(".")[1]):
+                        activations.append(x[0].cpu().detach().numpy())
+                        break
             # First layer
             # activations.append(model.rgb_features[0](img[:, :3, :, :])[0].cpu().detach().numpy()[0])
     np_activations_mean = np.zeros(activations[0].shape)
     for activation in activations:
         np_activations_mean += activation
     act_tensor = torch.tensor(np_activations_mean / len(activations))
-    torch.save(act_tensor, os.path.join('shap/activations', 'x.pt'))
+    torch.save(act_tensor, os.path.join('shap/activations', f'{MODEL_NAME}_{layer}.pt'))
 # Experiment parameters
 SAVE_FREQ = 100
-TASK = 'grasp'
-LAYER = 'first'
+
 METRIC = 'accuracy'
 TRUNCATION_ACC = 50.
 DEVICE = sys.argv[1]
+TASK = sys.argv[2]
+LAYER = LAYERS[int(sys.argv[3])]
+layer_i = int(sys.argv[3])
 DIR = 'shap'
-MODEL_NAME = params.MODEL_NAME
-MODEL_PATH = params.MODEL_WEIGHT_PATH
+MODEL_NAME = params.MODEL_NAME_SEED
+MODEL_PATH = params.MODEL_WEIGHT_PATH_SEED
 
-PARALLEL_INSTANCE = sys.argv[2]
+PARALLEL_INSTANCE = sys.argv[4]
 
 ## CB directory
 run_name = '%s_%s_%s' % (MODEL_NAME, LAYER, TASK)
@@ -216,10 +227,13 @@ if run_name not in os.listdir(DIR):
 model = get_model(MODEL_PATH, DEVICE)
 weights, bias = get_weights(model, LAYER)
 weights = weights#[:-2]
-
-# average_activations(model)
-# exit()
-activations = torch.load('shap/activations/x.pt').float().cuda()
+for i in range(5):
+    average_activations(model, MODEL_NAME, LAYERS[i], i)
+    activations = torch.load(f'shap/activations/{MODEL_NAME}_{LAYERS[i]}.pt').float().cuda()
+    print(activations.shape)
+exit()
+activations = torch.load(f'shap/activations/{MODEL_NAME}_{LAYER}.pt').float().cuda()
+# print(activations.shape)
 ## Instantiate or load player list
 players = get_players(run_dir, weights)
 # Instantiate tmab logs
@@ -228,8 +242,7 @@ mem_tmc, idxs_tmc = instantiate_tmab_logs(players, log_dir)
 ## Running CB-Shapley
 #c = {i: np.array([i]) for i in range(len(players))}
 c = {i: i for i in range(len(players))}
-print(c)
-exit()
+
 counter = 0
 while True:
     ## Load the list of players (filters) that are determined to be not confident enough
@@ -251,7 +264,8 @@ while True:
         chosen_players=chosen_players,
         metric=METRIC,
         task=TASK,
-        activations=activations
+        activations=activations,
+        layer_i=layer_i
     )
 
     mem_tmc = np.concatenate([mem_tmc, vals])
