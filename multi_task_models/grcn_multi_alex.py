@@ -128,6 +128,7 @@ class Multi_AlexnetMap_v3(nn.Module):
         d = torch.unsqueeze(x[:, 3, :, :], dim=1)
         d = torch.cat((d, d, d), dim=1)
         # d = torch.zeros(d.shape).to("cuda")
+        # d = torch.zeros(d.shape).to("cuda")
         # First Layer Shapley!!!!! -------------------------------------------------------
         # if shap_mask != []:
             
@@ -145,8 +146,15 @@ class Multi_AlexnetMap_v3(nn.Module):
         rgb = self.rgb_features[0](rgb)
         rgb = self.rgb_features[1](rgb)
         rgb = self.rgb_features[2](rgb)
+        rgb = self.rgb_features[0](rgb)
+        rgb = self.rgb_features[1](rgb)
+        rgb = self.rgb_features[2](rgb)
         d = self.d_features(d)
         x = torch.cat((rgb, d), dim=1)
+        if dissociate != []:
+            mask_idx = torch.zeros(x.shape[1], dtype=torch.bool).to(x.device)
+            mask_idx[dissociate[0]] = True
+            x[:,mask_idx,:,:] = 0
         if dissociate != []:
             mask_idx = torch.zeros(x.shape[1], dtype=torch.bool).to(x.device)
             mask_idx[dissociate[0]] = True
@@ -190,6 +198,10 @@ class Multi_AlexnetMap_v3(nn.Module):
             for i in range(len(self.cls)):
                 out = self.cls[i](out)
             # out = self.cls(x)
+            out = x
+            for i in range(len(self.cls)):
+                out = self.cls[i](out)
+            # out = self.cls(x)
             confidence = self.cls_confidence(x)
         out = torch.cat((out, confidence), dim=1)
         return out
@@ -201,6 +213,30 @@ class Multi_AlexnetMap_v3(nn.Module):
         
         for param in self.d_features.parameters():
             param.requires_grad = True
+            
+    def forward_with_connection_mask(self, x, connection_mask, avg_conn_activations, layer_i):
+        # x: [batch, in_channels, H, W]
+        W = self.features[layer_i].weight  # [out_channels, in_channels, kH, kW]
+        b = self.features[layer_i].bias
+
+        # Standard convolution
+        conv_out = self.features[layer_i](x)
+
+        # Replace masked connections with average activation
+        for tgt in range(W.shape[0]):
+            for src in range(W.shape[1]):
+                if connection_mask[tgt, src]:
+                    # Remove actual contribution
+                    x_src = x[:, src:src+1, :, :]
+                    w = W[tgt:tgt+1, src:src+1, :, :]
+                    actual_contrib = torch.nn.functional.conv2d(x_src, w, bias=None,
+                                                            stride=self.features[layer_i].stride,
+                                                            padding=self.features[layer_i].padding)
+                    conv_out[:, tgt] -= actual_contrib.squeeze(1)
+                    # Add average activation
+                    avg_act = torch.tensor(avg_conn_activations[tgt, src]).to(conv_out.device)
+                    conv_out[:, tgt] += avg_act
+        return conv_out
             
     def forward_with_connection_mask(self, x, connection_mask, avg_conn_activations, layer_i):
         # x: [batch, in_channels, H, W]
