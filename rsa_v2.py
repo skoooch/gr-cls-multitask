@@ -162,7 +162,105 @@ class MDS:
     def three_mds(D,p=None):
         my_scaler = manifold.MDS(n_jobs=-1, n_components=3)
         return my_scaler.fit_transform(D)
+def compare_model_variants(corr_type="spearman"):
+    """
+    Compares RDMs from Single Task models against Shapley Top 10 models across layers.
+    """
+    # Define the source directories
+    base_dir = "saved_model_rsms"
+    top_size = 6
+    paths = {
+        "C_Single": os.path.join(base_dir, "class/single_task_top0"),
+        "G_Single": os.path.join(base_dir, "grasp/single_task_top0"),
+        "C_Shap": os.path.join(base_dir, f"class/sort_shap_indices_depth_top{top_size}"),
+        "G_Shap": os.path.join(base_dir, f"grasp/sort_shap_indices_depth_top{top_size}")
+    }
 
+    # Define the 4 specific comparisons
+    # Format: (Key1, Key2, Legend Label)
+    comparisons = [
+        ("C_Single", "C_Shap", "Class Single vs Class Shap"),
+        ("G_Single", "C_Shap", "Grasp Single vs Class Shap"),
+        ("G_Single", "G_Shap", "Grasp Single vs Grasp Shap"),
+        ("C_Single", "G_Shap", "Class Single vs Grasp Shap")
+    ]
+
+    layer_files = ["0.npy", "1.npy", "2.npy", "3.npy", "4.npy"]
+    n_layers = len(layer_files)
+    n_combos = len(comparisons)
+    
+    # Store correlation results: [Layer, Combination]
+    results = np.zeros((n_layers, n_combos))
+
+    print(f"Calculating {corr_type} correlations...")
+
+    for l_idx, filename in enumerate(layer_files):
+        # Load matrices for this layer from all 4 sources
+        layer_mats = {}
+        for key, path in paths.items():
+            full_path = os.path.join(path, filename)
+            if os.path.exists(full_path):
+                mat = np.load(full_path)
+                # Extract upper triangle (exclude diagonal)
+                layer_mats[key] = mat[np.triu_indices(mat.shape[0], k=1)]
+            else:
+                print(f"Warning: File not found {full_path}")
+                layer_mats[key] = None
+
+        # Perform the 4 comparisons for this layer
+        for c_idx, (k1, k2, _) in enumerate(comparisons):
+            vec1 = layer_mats.get(k1)
+            vec2 = layer_mats.get(k2)
+
+            if vec1 is not None and vec2 is not None:
+                if corr_type == "spearman":
+                    r = spearmanr(vec1, vec2)[0]
+                elif corr_type == "pearson":
+                    r = pearsonr(vec1, vec2)[0]
+                else:
+                    # Default to Kendall if specified, or fallback
+                    r = rsatoolbox.rdm.compare_kendall_tau(vec1, vec2)[0]
+                
+                results[l_idx, c_idx] = r
+
+    # --- Plotting ---
+    plt.figure(figsize=(12, 7))
+    
+    # X-axis positions
+    x = np.arange(n_layers)
+    width = 0.2  # Width of individual bars
+    
+    # Colors for the 4 bars
+    colors = ['#ff7f0e', '#ff7f0e', '#1f77b4', '#1f77b4'] # Blue, Orange, Green, Red
+
+    # Plot bars
+    for c_idx in range(n_combos):
+        # Calculate offset so bars are centered around the tick
+        offset = (c_idx * width) - (width * 1.5)
+        plt.bar(x + offset, 
+                results[:, c_idx], 
+                width, 
+                label=comparisons[c_idx][2], 
+                color=colors[c_idx],
+                alpha=0.8,
+                edgecolor='black',
+                linewidth=0.5, 
+                hatch = None if c_idx % 2 == 0 else '//')
+
+    plt.xlabel("Network Layers", fontsize=12)
+    plt.ylabel(f"{corr_type.capitalize()} Correlation", fontsize=12)
+    plt.title("RSA Comparison: Single Task vs Top 15% Shapley Kernels", fontsize=14)
+    
+    plt.xticks(x, [f"Layer {i+1}" for i in range(n_layers)], fontsize=10)
+    plt.legend(title="Model Comparisons", fontsize=10)
+    plt.grid(axis='y', linestyle='--', alpha=0.4)
+    plt.ylim(bottom=0) # Assuming positive correlations, adjust if necessary
+
+    output_path = f"vis/model_variant_comparison_{corr_type}_{top_size}.png"
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=300)
+    print(f"Plot saved to {output_path}")
+    
 def perform_rsm_vis(times, time_region=0,task="class"):
     data = get_data_matlab(task,avr=True, left = False)
     labels = data.keys()
@@ -451,7 +549,7 @@ def comparative_analysis(model_rsm_path, timepoints, times, task="cls", name_suf
     plt.savefig("vis/rsm_correlation_1/%s_%s_%s" % (task, name_suffix, corr_type), dpi=300)
 
 
-visualize_eeg_rsm("class")
+compare_model_variants()
 exit()
 suffix = sys.argv[1]
 corr_type = sys.argv[2]

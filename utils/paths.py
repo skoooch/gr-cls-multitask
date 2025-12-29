@@ -10,8 +10,7 @@ import os
 
 from utils.parameters import Params
 
-params = Params()
-
+params=Params()
 class Path:
     """This class prepares the directories for saving models
     and training logs depending on the path names specified in
@@ -20,7 +19,7 @@ class Path:
     def __init__(self):
         self.model_path = params.MODEL_PATH
         self.log_path = params.LOG_PATH
-        self.model_log_path = params.MODEL_NAME
+        self.model_log_path = params.MODEL_LOG_PATH
 
     def create_model_path(self):
         """This method creates a subdirectory for trained models."""
@@ -37,5 +36,5 @@ class Path:
         of a specific model.
         """
         if self.model_log_path not in os.listdir(self.model_path):
-            os.makedirs(os.path.join(self.model_path, self.model_log_path))
+            os.makedirs(self.model_log_path)
     

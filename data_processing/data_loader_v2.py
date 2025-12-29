@@ -46,13 +46,14 @@ class DataLoader:
     Grasp labels:
         - self.load_grasp_label() and self.get_grasp_label()
     """
-    def __init__(self, path, batch_size, train_val_split=0.2, include_depth=True, return_mask=False, verbose=True, seed=None, device=params.DEVICE, no_shuffle=False):
+    def __init__(self, path, batch_size, train_val_split=0.2, include_depth=True, return_mask=False, verbose=False, seed=None, device=params.DEVICE, no_shuffle=False, return_angle=False):
         self.path = path
         self.batch_size = batch_size
         self.train_val_split = train_val_split
         self.return_mask = return_mask
         self.include_depth = include_depth
         self.device = device
+        self.return_angle = return_angle
 
         # Get list of class names
         self.img_cls_list = self.get_cls_id()
@@ -130,16 +131,18 @@ class DataLoader:
 
             # Normalize and combine rgb with depth channel
             img_rgbd = self.process(img_rgb, img_d, include_depth=include_depth)
-
+            
             if img_angle != 0:
                 img_rgbd = transforms.functional.rotate(img_rgbd, img_angle)
                 cls_map = transforms.functional.rotate(cls_map, img_angle)
+                img_mask = transforms.functional.rotate(img_mask[None,:,:], img_angle)[0,:,:]
 
             if not self.return_mask:
-                yield (img_rgbd, cls_map, img_cls_idx)
+                if not self.return_angle: yield (img_rgbd, cls_map, img_cls_idx)
+                else: yield (img_rgbd, cls_map, img_cls_idx, img_angle)   
             else:
-                yield (img_rgbd, cls_map, img_cls_idx, img_mask)
-
+                if not self.return_angle: yield (img_rgbd, cls_map, img_cls_idx, img_mask, img_angle)
+                else: yield (img_rgbd, cls_map, img_cls_idx, img_mask, img_angle)
     def load_grasp_batch(self):
         """Yields a batch of Grasp training data -- (img, grasp-label, grasp-candidates)."""
         for i, (img, grasp_map, grasp_list) in enumerate(self.load_grasp()):

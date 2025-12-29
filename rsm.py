@@ -11,6 +11,7 @@ from scipy.spatial.distance import squareform, pdist
 from skimage.exposure import match_histograms
 from sklearn import manifold, datasets
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
+from multi_task_models.alexnet import AlexnetMap_v3
 from data_processing.data_loader_v2 import DataLoader
 from utils.parameters import Params
 import numpy as np
@@ -49,12 +50,12 @@ def get_feature_activations(model, images, labels, layer_i=0, top = None,j=1, to
         x = torch.cat((rgb, d), dim=1)
         next = model.features[:layer_i](x)
         if j == 1:
-            if not top == None:
+            if top_size:
                 activations[label].append(next[:,top[j, :top_size//2,is_grasp],:,:])
             else:
                 activations[label].append(next[:,:,:,:])
         else:
-            if not top == None:
+            if top_size:
                 activations[label].append(next[:,top[j, :,is_grasp],:,:])
             else:
                 activations[label].append(next[:,:,:,:])
@@ -101,7 +102,7 @@ def get_head_activations(model, images, labels, layer_i=0, is_grasp=0):
             activations_flat.append(torch.flatten(act).cpu().detach().numpy())
     act_array = np.asarray(activations_flat)
     return act_array
-def get_rgb_activations(model, images, labels, depth=False, top = None, is_grasp=0):
+def get_rgb_activations(model, images, labels, depth=False, top = None,top_size=32, is_grasp=0):
     """
     Get RGB activations from the model.
     Args:
@@ -120,10 +121,15 @@ def get_rgb_activations(model, images, labels, depth=False, top = None, is_grasp
         if label not in activations.keys(): activations[label] = []
         if depth:
             d = torch.unsqueeze(img[:, 3, :, :], dim=1)
-            d = torch.from_numpy(match_histograms(d.cpu().numpy(), np.load("test_depth.npy"))).to("cuda")
+            # d = torch.from_numpy(match_histograms(d.cpu().numpy(), np.load("test_depth.npy"))).to("cuda")
             d = torch.cat((d, d, d), dim=1)
-            if top:
-                activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,top[0, :,is_grasp],:,:], model.d_features[0](d)), dim=1)
+            if top_size:
+                top = top[:, :top_size, :]
+                rgb_top = top[0, top[0, :, is_grasp] < 64, is_grasp]
+                d_top = top[0, top[0, :, is_grasp] >= 64, is_grasp] - 64
+                
+                
+                activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,rgb_top,:,:], model.d_features[0](d)[:, d_top, :,:]), dim=1)
             else:
                 activation = torch.concat((model.rgb_features[0](img[:, :3, :, :])[:,:,:,:], model.d_features[0](d)), dim=1)
             activations[label].append(activation)
@@ -218,6 +224,11 @@ def get_model(model_path, device=params.DEVICE):
     model.load_state_dict(torch.load(model_path))
     model.eval()
     return model
+def get_single_model(model_path, device=params.DEVICE):
+    model = AlexnetMap_v3().to(device)
+    model.load_state_dict(torch.load(model_path))
+    model.eval()
+    return model
 
 def get_activation(name):
     def hook(model, input, output):
@@ -226,42 +237,57 @@ def get_activation(name):
 
 images = load_images_to_arrays(depth=True)
 DEVICE = sys.argv[1]
-MODEL_NAME = params.MODEL_NAME
-MODEL_PATH = params.MODEL_WEIGHT_PATH
-model = get_model(MODEL_PATH, DEVICE)
+
 
 data_loader = DataLoader(params.TEST_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT)
 labels = ['A', 'B', 'C', 'D', 'E']
 labels_repeated = np.repeat(labels, 5)
-is_grasp = True
-#rgb = get_rgb_activations(model, images, labels, depth=True)
-# j=0
+
+# #-------------------------/////////////// SINGLE TASK MODELS ///////////////////////////---------------------
+# is_grasp = 0
+# MODEL_PATH = params.CLS_WEIGHT_PATH if not is_grasp else params.GRASP_WEIGHT_PATH
+# model = get_single_model(MODEL_PATH, DEVICE)
+# rsm_folder = "sort_shap_indices_depth"
+# selected_kernels = torch.tensor(np.load(f"shap_arrays/{rsm_folder}.npy"), dtype=int).to("cuda")
+# rsm_folder = "single_task"
+# top_size = 0
+# act_array = get_rgb_activations(model, images, labels,depth=True,top=selected_kernels,top_size=top_size, is_grasp=is_grasp)
+# result = squareform(pdist(act_array, metric="correlation"))
+
+# if f"{"grasp" if is_grasp else "class"}/{rsm_folder}_top{top_size}" not in os.listdir("saved_model_rsms"):
+#             os.makedirs(f"saved_model_rsms/{"grasp" if is_grasp else "class"}/{rsm_folder}_top{top_size}")
+# np.save(f"saved_model_rsms/{"grasp" if is_grasp else "class"}/{rsm_folder}_top{top_size}/0.npy", result)
+
+# j = 0
 # for i in [1, 5, 8, 11]:
 #     j += 1
-#     act_array = get_feature_activations(model, images, labels, layer_i=i, j=j)
-#     rgb = np.concatenate((rgb, act_array), axis = 1)
-# for i in [1, 3,5, 7]:
-#     act_array = get_head_activations(model, images, labels, layer_i=i, is_grasp=is_grasp)
-#     rgb = np.concatenate((rgb, act_array), axis = 1)
-# print(rgb.shape)
-# print(np.load("saved_model_rsms/rgb.npy").shape)
-# visualize_rsm(squareform(pdist(rgb, metric="correlation")), title=f"Second Convolutional Layer RDM", is_grasp = is_grasp)
-# exit()
-is_grasp = 0
-rsm_folder = "sort_shap_indices"
-selected_kernels = torch.tensor(np.load(f"shap_arrays/{rsm_folder}.npy"), dtype=int).to("cuda")
+#     act_array = get_feature_activations(model, images, labels, layer_i=i, j=j,top=selected_kernels, top_size=top_size,is_grasp=is_grasp)
+#     result = squareform(pdist(act_array, metric="correlation"))
+#     np.save(f"saved_model_rsms/{"grasp" if is_grasp else "class"}/{rsm_folder}_top{top_size}/{j}.npy", result)
+    
+# exit() # remove this if you want to do the visualization
+# #--------------------------//////////////////////////////////////-----------------------------------
 
-act_array = get_rgb_activations(model, images, labels,depth=False,top=selected_kernels, is_grasp=is_grasp)
+MODEL_PATH = params.MODEL_WEIGHT_PATH
+model = get_model(MODEL_PATH, DEVICE)
+
+is_grasp = 1
+rsm_folder = "sort_shap_indices_depth"
+selected_kernels = torch.tensor(np.load(f"shap_arrays/{rsm_folder}.npy"), dtype=int).to("cuda")
+top_size = 6
+act_array = get_rgb_activations(model, images, labels,depth=True,top=selected_kernels,top_size=top_size, is_grasp=is_grasp)
 result = squareform(pdist(act_array, metric="correlation"))
-print(result.mean())
-np.save(f"saved_model_rsms/{"grasp" if is_grasp else "class"}/{rsm_folder}/0.npy", result)
+
+if f"{"grasp" if is_grasp else "class"}/{rsm_folder}_top{top_size}" not in os.listdir("saved_model_rsms"):
+            os.makedirs(f"saved_model_rsms/{"grasp" if is_grasp else "class"}/{rsm_folder}_top{top_size}")
+np.save(f"saved_model_rsms/{"grasp" if is_grasp else "class"}/{rsm_folder}_top{top_size}/0.npy", result)
 
 j = 0
 for i in [1, 5, 8, 11]:
     j += 1
-    act_array = get_feature_activations(model, images, labels, layer_i=i, j=j,top=selected_kernels, top_size=6,is_grasp=is_grasp)
+    act_array = get_feature_activations(model, images, labels, layer_i=i, j=j,top=selected_kernels, top_size=top_size,is_grasp=is_grasp)
     result = squareform(pdist(act_array, metric="correlation"))
-    np.save(f"saved_model_rsms/{"grasp" if is_grasp else "class"}/{rsm_folder}/{j}.npy", result)
+    np.save(f"saved_model_rsms/{"grasp" if is_grasp else "class"}/{rsm_folder}_top{top_size}/{j}.npy", result)
     
 exit() # remove this if you want to do the visualization
 

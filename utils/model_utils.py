@@ -1,8 +1,6 @@
 import torch.nn as nn
 from functools import partial
 
-from single_task_models.grasp_model import GraspModel, ResidualBlock
-
 def alexnetMap_register_hook(model, save_activation):
     """Register forward hook to all conv layers in alexnetMap model."""
     """for name, m in model.rgb_features.named_modules():
