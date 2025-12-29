@@ -8,8 +8,13 @@ from scipy import stats
 import shutil
 from matplotlib.ticker import MaxNLocator, FixedLocator
 
+import shutil
+from matplotlib.ticker import MaxNLocator, FixedLocator
+
 # Experiment parameters
 TYPES = ['cls', 'grasp']
+LAYERS = ['first','features.0','features.4', 'features.7', 'features.10']
+
 LAYERS = ['first','features.0','features.4', 'features.7', 'features.10']
 
 
@@ -95,7 +100,7 @@ def get_r(players, results_dict, layer):
     r_ci_upper = np.percentile(r_bootstrap, 97.5)
     return r_mean, (r_ci_lower, r_ci_upper)
     
-def plot_layer_by_task(players, results_dict, layer):
+def get_r(players, results_dict, layer):
     """
     (Scatter plot)
     (Data point = kernel w/ coordinate being (Shapley-value on cls, shapley-value on grasp))
@@ -112,6 +117,52 @@ def plot_layer_by_task(players, results_dict, layer):
             counts += np.sum(mem_tmc != -1, 0)
         # No. of iterations for each neuron
         counts = np.clip(counts, 1e-12, None)
+        
+        # Expected shapley values of each neuron
+        vals[task] = sums / (counts + 1e-12)
+    # Assuming vals is already calculated for the two tasks:
+    task_1 = list(results_dict.keys())[0]  # Access the first task
+    task_2 = list(results_dict.keys())[1]  # Access the second task
+
+
+    # Extract the values for both tasks
+    vals_task_1 = vals[task_1]
+    vals_task_2 = vals[task_2]
+    vals_task_1 = np.array(vals_task_1)
+    vals_task_2 = np.array(vals_task_2)
+    # Bootstrapped Pearson correlation
+    n_bootstrap = 1000
+    rng = np.random.default_rng(seed=42)
+    r_bootstrap = []
+    for _ in range(n_bootstrap):
+        idx = rng.integers(0, len(vals_task_1), len(vals_task_1))
+        r, _ = stats.pearsonr(vals_task_1[idx], vals_task_2[idx])
+        r_bootstrap.append(r)
+    r_bootstrap = np.array(r_bootstrap)
+    r_mean = np.mean(r_bootstrap)
+    r_ci_lower = np.percentile(r_bootstrap, 2.5)
+    r_ci_upper = np.percentile(r_bootstrap, 97.5)
+    return r_mean, (r_ci_lower, r_ci_upper)
+    
+def plot_layer_by_task(players, results_dict, layer):
+    """
+    (Scatter plot)
+    (Data point = kernel w/ coordinate being (Shapley-value on cls, shapley-value on grasp))
+    Plot shapley value scatter plot and calculate correlation
+    """
+    vals = {}
+    for task in results_dict.keys():
+        squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
+        for result in results_dict[task]:
+            mem_tmc = get_result(result)
+            
+            
+            sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
+            squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
+            counts += np.sum(mem_tmc != -1, 0)
+        # No. of iterations for each neuron
+        counts = np.clip(counts, 1e-12, None)
+       
        
         # Expected shapley values of each neuron
         vals[task] = sums / (counts + 1e-12)
@@ -125,7 +176,11 @@ def plot_layer_by_task(players, results_dict, layer):
     vals_task_2 = vals[task_2]
     vals_task_1 = np.array(vals_task_1)
     # Remove value at index 36 from both arrays
+    # Remove value at index 36 from both arrays
     vals_task_2 = np.array(vals_task_2)
+    
+    vals_task_1 = np.delete(vals_task_1, 37)
+    vals_task_2 = np.delete(vals_task_2, 37)
     
     vals_task_1 = np.delete(vals_task_1, 37)
     vals_task_2 = np.delete(vals_task_2, 37)
@@ -141,6 +196,7 @@ def plot_layer_by_task(players, results_dict, layer):
          verticalalignment='top', bbox=dict(boxstyle="round,pad=0.3", edgecolor="black", facecolor="white"))
 
     plt.savefig('vis/shap/layer_corr/layer_corr_%s.png' % layer)
+    exit()
     exit()
 
 def get_players(directory):
@@ -221,6 +277,7 @@ def get_cb_bounds(vals, variances, counts):
 
     return cbs
     
+    
 
 def plot_shapley_dist(players, results, model_type, layer):
     """
@@ -236,17 +293,21 @@ def plot_shapley_dist(players, results, model_type, layer):
     for result in results:
         mem_tmc = get_result(result)
         
+        
         sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
         squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
         counts += np.sum(mem_tmc != -1, 0)
     # No. of iterations for each neuron
     counts = np.clip(counts, 1e-12, None)
    
+   
     # Expected shapley values of each neuron
     vals = sums / (counts + 1e-12)
 
+
     # Variance of shapley values of each neuron
     variances, stds = get_variance_std(sums, vals, squares, counts)
+   
    
     # Empirical berstein confidence bounds for each neuron
     cbs = get_cb_bounds(vals, variances, counts)
@@ -255,7 +316,20 @@ def plot_shapley_dist(players, results, model_type, layer):
     top_k_vals[sorted_vals_idx] = 1
 
     # Set bar colors
+
+    # Set bar colors
     colors = np.where(top_k_vals == 1, 'coral', 'turquoise')
+    if model_type == 'cls':
+        colors = np.where(top_k_vals == 1, 'red', 'lightcoral')
+    elif model_type == 'grasp':
+        colors = np.where(top_k_vals == 1, 'blue', 'lightblue')
+    else: # fallback color
+        colors = np.where(top_k_vals == 1, 'grey', 'lightgrey')
+
+    # for i in range(len(players)):
+    #     if top_k_vals[i] == 1:
+    #         shutil.copy('features/%s/%s.png' % (layer, i), 'features/%s_%s_%s.png' % (layer, model_type, i))
+            
     if model_type == 'cls':
         colors = np.where(top_k_vals == 1, 'red', 'lightcoral')
     elif model_type == 'grasp':
@@ -271,6 +345,9 @@ def plot_shapley_dist(players, results, model_type, layer):
     ax.bar(np.arange(len(vals)), vals, yerr=cbs, align='center', ecolor='lightgrey', color=colors)
     ax.set_xlabel('Kernel Index')
     ax.set_ylabel('Shapley Scores')
+    # ax.xaxis.grid(False)
+    ax.axhline(0, color='gray', linewidth=0.7, linestyle='-') 
+    # ax.yaxis.grid(False)
     # ax.xaxis.grid(False)
     ax.axhline(0, color='gray', linewidth=0.7, linestyle='-') 
     # ax.yaxis.grid(False)

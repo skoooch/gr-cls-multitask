@@ -3,14 +3,17 @@
 *probe_final.pth
 !vis/shap/*
 features/
+features/
 *.obj
 *__pycache__/
 *.npy
+*.csv
 *.csv
 *_mask.png
 *_grasps.txt
 *.tiff
 *_RGB.png
+*.png
 *.png
 *.zip
 dump

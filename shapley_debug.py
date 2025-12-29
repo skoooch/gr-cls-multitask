@@ -10,9 +10,11 @@ import torch.nn as nn
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+
 from torchsummary import summary
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from data_processing.data_loader_v2 import DataLoader
+from training_utils.evaluation import get_cls_acc, get_grasp_acc
 from training_utils.evaluation import get_cls_acc, get_grasp_acc
 from utils.parameters import Params
 
@@ -135,13 +137,41 @@ def get_weights(model, layer):
                 weight = torch.split(W, 1, dim=0)
             elif name == layer+'.bias':
                 bias = torch.split(W, 1, dim=0)
+    if layer == "first":
+        weights = []
+        biases = []
+        for layer in ["rgb_features.0", "d_features.0"]:
+            for name, W in model.named_parameters():
+                if name == layer+'.weight':
+                    weight = torch.split(W, 1, dim=0)
+                elif name == layer+'.bias':
+                    bias = torch.split(W, 1, dim=0)
 
+            assert weight is not None, f"Layer {layer} not found"
+            assert bias is not None, f"Layer {layer} not found"
+
+            weights += [TensorID(layer+'.weight', None, i) for i, _ in enumerate(weight)]
+            biases += [TensorID(layer+'.bias', None, i) for i, _ in enumerate(bias)]
+
+        return weights, biases
+    else:        
+        for name, W in model.named_parameters():
+            if name == layer+'.weight':
+                weight = torch.split(W, 1, dim=0)
+            elif name == layer+'.bias':
+                bias = torch.split(W, 1, dim=0)
+
+        assert weight is not None, f"Layer {layer} not found"
+        assert bias is not None, f"Layer {layer} not found"
         assert weight is not None, f"Layer {layer} not found"
         assert bias is not None, f"Layer {layer} not found"
 
         weights = [TensorID(layer+'.weight', None, i) for i, _ in enumerate(weight)]
         biases = [TensorID(layer+'.bias', None, i) for i, _ in enumerate(bias)]
+        weights = [TensorID(layer+'.weight', None, i) for i, _ in enumerate(weight)]
+        biases = [TensorID(layer+'.bias', None, i) for i, _ in enumerate(bias)]
 
+        return weights, biases
         return weights, biases
 
 
@@ -242,7 +272,8 @@ mem_tmc, idxs_tmc = instantiate_tmab_logs(players, log_dir)
 ## Running CB-Shapley
 #c = {i: np.array([i]) for i in range(len(players))}
 c = {i: i for i in range(len(players))}
-
+print(c)
+exit()
 counter = 0
 while True:
     ## Load the list of players (filters) that are determined to be not confident enough

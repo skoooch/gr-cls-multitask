@@ -65,6 +65,7 @@ class DataLoader:
         if seed is not None:
             random.seed(seed)
         if not no_shuffle: random.shuffle(self.img_id_list)
+        if not no_shuffle: random.shuffle(self.img_id_list)
 
         # Custom data augmentations
         # Add gaussian noise with 25% probability
@@ -96,6 +97,7 @@ class DataLoader:
                 map_batch = torch.cat((map_batch, cls_map), dim=0)
                 label_batch = torch.cat((label_batch, label), dim=0)
             
+            # This line catches the final few instances (less than batch_size)
             # This line catches the final few instances (less than batch_size)
         if (i + 1) % self.batch_size != 0:
             yield (img_batch, map_batch, label_batch)
@@ -187,9 +189,13 @@ class DataLoader:
             
             grasp_map = torch.tensor(grasp_map, dtype=torch.float).to(self.device)
             
+            
+            grasp_map = torch.tensor(grasp_map, dtype=torch.float).to(self.device)
+            
             grasp_map = self.normalize_grasp_map(grasp_map)
             # Get Grasp list
             grasp_list = np.load(open(os.path.join(img_path, img_name + '_' + str(img_angle) + '_txt_grasps.npy'), 'rb'))
+            grasp_list = torch.tensor(grasp_list, dtype=torch.float).to(self.device)
             grasp_list = torch.tensor(grasp_list, dtype=torch.float).to(self.device)
             grasp_list = self.normalize_grasp_arr(grasp_list)
 
