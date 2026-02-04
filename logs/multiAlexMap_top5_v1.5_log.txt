@@ -1242,6 +1242,7 @@ Epoch: 155 -- Train Loss: tensor(0.0317, device='cuda:0', grad_fn=<DivBackward0>
 Epoch: 156 -- Train Loss: tensor(0.1319, device='cuda:0', grad_fn=<DivBackward0>) -- Train Acc: 83.65 -- Val Loss: tensor(0.1382, device='cuda:0', grad_fn=<DivBackward0>) -- Val Acc: 83.65
                          Test Loss: 0.0 -- Test Acc: 83.65Classification: 
 Epoch: 156 -- Train Loss: tensor(0.0324, device='cuda:0', grad_fn=<DivBackward0>) -- Train Acc: 99.02 -- Val Loss: tensor(0.0471, device='cuda:0', grad_fn=<DivBackward0>) -- Val Acc: 99.02
+<<<<<<< Updated upstream
                          Test Loss: 0.0 -- Test Acc: 83.0Grasping: 
 Epoch: 1 -- Train Loss: tensor(0.1985, device='cuda:0', grad_fn=<DivBackward0>) -- Train Acc: 45.48 -- Val Loss: tensor(0.1577, device='cuda:0', grad_fn=<DivBackward0>) -- Val Acc: 45.48
                          Test Loss: 0.0 -- Test Acc: 45.48Classification: 
@@ -3671,3 +3672,5 @@ Epoch: 150 -- Train Loss: tensor(0.0314, device='cuda:0', grad_fn=<DivBackward0>
                          Test Loss: 0.0 -- Test Acc: 78.5Epoch: 40 -- Train Loss: tensor(0.0387, device='cuda:0', grad_fn=<DivBackward0>) -- Train Acc: 91.23 -- Val Loss: tensor(0.0440, device='cuda:0', grad_fn=<DivBackward0>) -- Val Acc: 91.23
                          Test Loss: 0.0 -- Test Acc: 78.5Epoch: 41 -- Train Loss: tensor(0.0397, device='cuda:0', grad_fn=<DivBackward0>) -- Train Acc: 86.61 -- Val Loss: tensor(0.0463, device='cuda:0', grad_fn=<DivBackward0>) -- Val Acc: 86.61
                          Test Loss: 0.0 -- Test Acc: 79.25
+
+
