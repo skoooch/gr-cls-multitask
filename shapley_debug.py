@@ -261,7 +261,7 @@ for i in range(5):
     average_activations(model, MODEL_NAME, LAYERS[i], i)
     activations = torch.load(f'shap/activations/{MODEL_NAME}_{LAYERS[i]}.pt').float().cuda()
     print(activations.shape)
-exit()
+
 activations = torch.load(f'shap/activations/{MODEL_NAME}_{LAYER}.pt').float().cuda()
 # print(activations.shape)
 ## Instantiate or load player list
@@ -272,8 +272,7 @@ mem_tmc, idxs_tmc = instantiate_tmab_logs(players, log_dir)
 ## Running CB-Shapley
 #c = {i: np.array([i]) for i in range(len(players))}
 c = {i: i for i in range(len(players))}
-print(c)
-exit()
+
 counter = 0
 while True:
     ## Load the list of players (filters) that are determined to be not confident enough

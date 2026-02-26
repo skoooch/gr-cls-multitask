@@ -31,19 +31,19 @@ from utils.parameters import Params
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 from training_utils.evaluation import get_cls_acc, get_grasp_acc, visualize_grasp, visualize_cls
 
-params = Params()
-SEED=42
+params = Params() 
+SEED = params.SEED
 
 torch.manual_seed(SEED)
 torch.cuda.manual_seed(SEED)
 
-model_name = params.MODEL_NAME
-weights_dir = params.MODEL_PATH
-weights_path = os.path.join(weights_dir, model_name, model_name + '_final.pth')
-# AlexNet with 1st, 2nd layer pretrained on Imagenet
-model =  Multi_AlexnetMap_v3().to('cuda')
-model.load_state_dict(torch.load(weights_path))
+MODEL_NAME = params.MODEL_NAME_SEED
+MODEL_PATH = params.MODEL_WEIGHT_PATH_SEED
+model = Multi_AlexnetMap_v3().to("cuda")
+model.load_state_dict(torch.load(MODEL_PATH))
 model.eval()
+torch.manual_seed(42)
+torch.cuda.manual_seed(42)
 path = params.TEST_PATH
 if len(sys.argv) > 1:
     path = params.TEST_PATH_SHUFFLE
