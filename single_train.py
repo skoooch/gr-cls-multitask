@@ -107,7 +107,7 @@ scheduler = torch.optim.lr_scheduler.StepLR(optim, 25, 0.5)
 
 # Early stopping setup
 best_val_loss = float('inf')
-patience = 15  # Number of epochs to wait for improvement
+patience = 3  # Number of epochs to wait for improvement
 patience_counter = 0
 best_model_path = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_best.pth")
 
@@ -174,7 +174,7 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
         
         # Early stopping check - use combined validation loss
         current_val_loss = (sum(val_history) / len(val_history) if val_history else 0)
-        
+        print(f"Acc = {test_acc}" )
         if current_val_loss < best_val_loss:
             best_val_loss = current_val_loss
             patience_counter = 0
