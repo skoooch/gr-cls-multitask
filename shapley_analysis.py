@@ -12,7 +12,7 @@ import shutil
 from matplotlib.ticker import MaxNLocator, FixedLocator
 
 # Experiment parameters
-TYPES = ['cls', 'grasp']
+TYPES = ['grasp']
 LAYERS = ['first','features.0','features.4', 'features.7', 'features.10']
 
 LAYERS = ['first','features.0','features.4', 'features.7', 'features.10']
@@ -567,4 +567,4 @@ if __name__ == '__main__':
     # ax.set_title('Correlation in Neuron Shapley Values Between Tasks Across Layers')
     # plt.savefig('vis/shap/layer_corr/all_layers.png')
 
-    plot_all_layer_scatter(players_dict, results_dict_by_layer, LAYERS)
+    #plot_all_layer_scatter(players_dict, results_dict_by_layer, LAYERS)

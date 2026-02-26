@@ -146,15 +146,8 @@ class Multi_AlexnetMap_v3(nn.Module):
         rgb = self.rgb_features[0](rgb)
         rgb = self.rgb_features[1](rgb)
         rgb = self.rgb_features[2](rgb)
-        rgb = self.rgb_features[0](rgb)
-        rgb = self.rgb_features[1](rgb)
-        rgb = self.rgb_features[2](rgb)
         d = self.d_features(d)
         x = torch.cat((rgb, d), dim=1)
-        if dissociate != []:
-            mask_idx = torch.zeros(x.shape[1], dtype=torch.bool).to(x.device)
-            mask_idx[dissociate[0]] = True
-            x[:,mask_idx,:,:] = 0
         if dissociate != []:
             mask_idx = torch.zeros(x.shape[1], dtype=torch.bool).to(x.device)
             mask_idx[dissociate[0]] = True
@@ -194,10 +187,6 @@ class Multi_AlexnetMap_v3(nn.Module):
             out = self.grasp(x)
             confidence = self.grasp_confidence(x)
         else:
-            out = x
-            for i in range(len(self.cls)):
-                out = self.cls[i](out)
-            # out = self.cls(x)
             out = x
             for i in range(len(self.cls)):
                 out = self.cls[i](out)
