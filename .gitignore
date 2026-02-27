@@ -1,6 +1,8 @@
 *.pth
 !*final.pth
 *probe_final.pth
+*.err
+*.out
 !vis/shap/*
 features/
 features/

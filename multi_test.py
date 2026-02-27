@@ -42,8 +42,6 @@ MODEL_PATH = params.MODEL_WEIGHT_PATH_SEED
 model = Multi_AlexnetMap_v3().to("cuda")
 model.load_state_dict(torch.load(MODEL_PATH))
 model.eval()
-torch.manual_seed(42)
-torch.cuda.manual_seed(42)
 path = params.TEST_PATH
 if len(sys.argv) > 1:
     path = params.TEST_PATH_SHUFFLE
