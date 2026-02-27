@@ -43,7 +43,10 @@ def get_cls_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH, 
                 total += batch_total
     else:
         data_loader = DataLoader(dataset, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT, seed=seed)
+        print("here")
+        print(data_loader.load_batch())
         for i, (img, cls_map, label) in enumerate(data_loader.load_batch()):
+            print("here")
             if i % skip == 0:
                 if truncation is not None and (i * params.BATCH_SIZE / data_loader.n_data) > truncation:
                     break

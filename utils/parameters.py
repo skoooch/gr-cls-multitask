@@ -24,13 +24,16 @@ class Params:
         # 2=pretrained on cls, then trained on grasp
         # 11=singletask model cls
         # 22 = single task model grasp
+        
         # 31 = single task model cls v2 (trained post steven)
         # 32 = single task model grasp v2 (trained post steven)
+        # 33 = single task model cls, pretrained on grasp v2
+        # 34 = single task model grasp, pretrained on cls v2 
         # 43-47 + no_seed = base model
         # 203=depth input only
         # 301=rgb only 
         # i think 400 is trained with weight decay/L2 reg
-        self.SEED = 31
+        self.SEED = 32
         self.MODEL_NAME_SEED = self.MODEL_NAME + f"_{self.SEED}"
         self.CLS_MODEL_NAME = 'alexnetMap_cls_top5_v3.2.2'
         self.GRASP_MODEL_NAME = 'alexnetMap_grasp_top5_v3.2.2'

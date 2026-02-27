@@ -46,6 +46,7 @@ from training_utils.loss import MapLoss, DistillationLoss
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 import shutil
 task = "cls"
+opposite_pretrained = True
 params = Params() 
 paths = Path()
 SEED = params.SEED
@@ -65,37 +66,16 @@ torch.cuda.manual_seed(SEED)
 model =  Multi_AlexnetMap_v3().to(params.DEVICE)
 
 # Load model
-# # if task == "grasp":
-#     MODEL_PATH = params.CLS_WEIGHT_PATH
-# else:
-#     MODEL_PATH = params.GRASP_WEIGHT_PATH
-# weight_dict = torch.load(MODEL_PATH)
-# filtered_dict = {k:weight_dict[k] for k in weight_dict if "features" in k and int(k.split('.')[1]) < 11}
+if opposite_pretrained:
+    if task == "grasp":
+        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("34", "31")
+    else:
+        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("33", "32")
+    weight_dict = torch.load(MODEL_PATH)
+    filtered_dict = {k:weight_dict[k] for k in weight_dict if "features" in k and int(k.split('.')[1]) < 11}
 
-# Map AlexnetMap_v3's upsampling feature layers [13, 15, 17] → Multi head layers [0, 2, 4]
-# and the final grasp/confidence layers → head layer [6]
-# if task == "grasp":
-#     output_head, confidence_head = "grasp", "grasp_confidence"
-# else:
-#     output_head, confidence_head = "cls", "cls_confidence"
+    model.load_state_dict(filtered_dict, strict=False)
 
-# upsample_map = {13: 0, 15: 2, 17: 4}  # features index → head index
-# for old_idx, new_idx in upsample_map.items():
-#     for suffix in ["weight", "bias"]:
-#         old_key = f"features.{old_idx}.{suffix}"
-#         if old_key in weight_dict:
-#             filtered_dict[f"{output_head}.{new_idx}.{suffix}"] = weight_dict[old_key]
-#             filtered_dict[f"{confidence_head}.{new_idx}.{suffix}"] = weight_dict[old_key]
-
-# for suffix in ["weight", "bias"]:
-#     if f"grasp.0.{suffix}" in weight_dict:
-#         filtered_dict[f"{output_head}.6.{suffix}"] = weight_dict[f"grasp.0.{suffix}"]
-#     if f"confidence.0.{suffix}" in weight_dict:
-#         filtered_dict[f"{confidence_head}.6.{suffix}"] = weight_dict[f"confidence.0.{suffix}"]
-
-# model.load_state_dict(filtered_dict, strict=False)
-# torch.save(model.state_dict(), os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth"))
-# exit()
 # Create DataLoader class
 data_loader = DataLoader(params.TRAIN_PATH, params.BATCH_SIZE, params.TRAIN_VAL_SPLIT, seed=SEED)
 # Get number of training/validation steps
@@ -107,7 +87,7 @@ scheduler = torch.optim.lr_scheduler.StepLR(optim, 25, 0.5)
 
 # Early stopping setup
 best_val_loss = float('inf')
-patience = 3  # Number of epochs to wait for improvement
+patience = 5  # Number of epochs to wait for improvement
 patience_counter = 0
 best_model_path = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_best.pth")
 
@@ -121,21 +101,18 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
     train_correct = 1
     val_total = 1
     val_correct = 1
-    
-    image_data = enumerate(zip(data_loader.load_grasp_batch(), data_loader.load_batch()))
+    if task == "cls":
+        image_data = enumerate(data_loader.load_batch())
+    else:
+        image_data = enumerate(data_loader.load_grasp_batch())
     values = (0,0)
     values = (0,0)
-    for step, ((img_grp, map_grp, label_grp), (img_cls, map_cls, label_cls)) in image_data:
+    print("here")
+    for step, (img,map,label) in image_data:
         optim.zero_grad()
         if task == "cls":
-            img = img_cls
-            map = map_cls
-            label = label_cls
             output = model(img, is_grasp=False)
         else:
-            img = img_grp
-            map = map_grp
-            label = label_grp
             output = model(img, is_grasp=True)
         loss = MapLoss(output, map)
 
@@ -162,7 +139,7 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
             val_total += total
                 
     # Get testing accuracy stats (CLS / Grasp)
-    if (epoch % 10 == 1):
+    if (epoch % 3 == 1):
         model.eval()
         if task == "cls":
             train_acc, train_loss = get_cls_acc(model, include_depth=True, seed=SEED, dataset=params.TRAIN_PATH, truncation=None)

@@ -259,8 +259,7 @@ weights, bias = get_weights(model, LAYER)
 weights = weights#[:-2]
 for i in range(5):
     average_activations(model, MODEL_NAME, LAYERS[i], i)
-    activations = torch.load(f'shap/activations/{MODEL_NAME}_{LAYERS[i]}.pt').float().cuda()
-    print(activations.shape)
+    activations = torch.load(f'shap/activations/{MODEL_NAME}_{LAYERS[i]}.pt').float().cuda() # not sure why this is here
 
 activations = torch.load(f'shap/activations/{MODEL_NAME}_{LAYER}.pt').float().cuda()
 # print(activations.shape)
