@@ -260,7 +260,7 @@ weights = weights#[:-2]
 for i in range(5):
     average_activations(model, MODEL_NAME, LAYERS[i], i)
     activations = torch.load(f'shap/activations/{MODEL_NAME}_{LAYERS[i]}.pt').float().cuda() # not sure why this is here
-
+exit()
 activations = torch.load(f'shap/activations/{MODEL_NAME}_{LAYER}.pt').float().cuda()
 # print(activations.shape)
 ## Instantiate or load player list
