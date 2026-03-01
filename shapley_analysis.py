@@ -487,9 +487,128 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
 
     plt.savefig(f'vis/shap/layer_corr/{params.SEED}combined_below_graph_black.png', dpi=300)
 
+def plot_cross_seed_scatter(players_dict_seed1, results_dict_seed1, 
+                             players_dict_seed2, results_dict_seed2, 
+                             layers, task, seed1_label='Seed 1', seed2_label='Seed 2'):
+    '''
+    Plot correlation in neuron shapley values for the same task
+    between two differently-seeded models, across layers.
+    Mirrors the structure of plot_all_layer_scatter.
+    '''
+    r_values = []
+    scatter_data = []
+    confidence_intervals = []
+
+    for layer_i, layer in enumerate(layers):
+        players1 = players_dict_seed1[layer]
+        players2 = players_dict_seed2[layer]
+        results1 = results_dict_seed1[layer]
+        results2 = results_dict_seed2[layer]
+
+        def compute_vals(players, results, task):
+            squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
+            for result in results[task]:
+                mem_tmc = get_result(result)
+                sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
+                squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
+                counts += np.sum(mem_tmc != -1, 0)
+            counts = np.clip(counts, 1e-12, None)
+            return sums / (counts + 1e-12)
+
+        x = compute_vals(players1, results1, task)
+        y = compute_vals(players2, results2, task)
+        print(x)
+        print(y)
+        # Bootstrapped Pearson correlation
+        n_bootstrap = 1000
+        rng = np.random.default_rng(seed=42)
+        r_bootstrap = []
+        min_len = min(len(x), len(y))
+        x_trim, y_trim = x[:min_len], y[:min_len]
+        for _ in range(n_bootstrap):
+            idx = rng.integers(0, min_len, min_len)
+            r, _ = stats.pearsonr(x_trim[idx], y_trim[idx])
+            r_bootstrap.append(r)
+        r_bootstrap = np.array(r_bootstrap)
+        r_mean = np.mean(r_bootstrap)
+        r_ci_lower = np.percentile(r_bootstrap, 2.5)
+        r_ci_upper = np.percentile(r_bootstrap, 97.5)
+
+        r_values.append(r_mean)
+        confidence_intervals.append((r_ci_lower, r_ci_upper))
+        scatter_data.append((x_trim, y_trim, r_mean, layer))
+
+    # Plot main correlation line with inset scatters
+    fig, ax = plt.subplots(figsize=(10, 8))
+    x_values = np.arange(1, len(r_values) + 1)
+
+    lower_bounds = [ci[0] for ci in confidence_intervals]
+    upper_bounds = [ci[1] for ci in confidence_intervals]
+
+    ax.errorbar(x_values, r_values,
+                yerr=[np.abs(np.array(r_values) - np.array(lower_bounds)),
+                      np.abs(np.array(upper_bounds) - np.array(r_values))],
+                fmt='o', capsize=5, linestyle='--', color="black")
+
+    ax.set_xticks(x_values)
+    ax.xaxis.set_major_locator(plt.FixedLocator(x_values[::2]))
+    ax.axhline(0, color='gray', linewidth=0.7, linestyle='-')
+    ax.set_ylabel('Correlation (r-value)', labelpad=2, fontsize=14)
+    ax.set_xlabel('Feature extraction layer', labelpad=1.5, fontsize=14)
+    ax.set_title(f'Shapley Correlation for {"Grasp" if task == "grasp" else "Recognition"} Task', fontsize=18)
+
+    fig.subplots_adjust(bottom=0.35)
+    for i, (x, y, r, layer) in enumerate(scatter_data):
+        inset_width = 0.12
+        inset_height = 0.18
+        left = 0.13 + i * (0.83 / len(scatter_data))
+        bottom = 0.08
+
+        inset_ax = fig.add_axes([left, bottom, inset_width, inset_height])
+        inset_ax.scatter(x, y, alpha=0.7, color="black")
+        inset_ax.set_title(f'r = {r:.2f}', fontsize=8)
+        inset_ax.set_xlabel(seed1_label, fontsize=6, labelpad=1)
+        inset_ax.set_ylabel(seed2_label, fontsize=6, labelpad=1)
+        inset_ax.tick_params(axis='both', which='major', labelsize=6)
+
+    plt.savefig(f'vis/shap/layer_corr/cross_seed_{task}_{"_".join([seed1_label, seed2_label])}.png', dpi=300)
+    plt.close()
+def init_cross_seed(task = "cls"):
+    model_name_1 = params.MODEL_NAME_SEED
+
+    players_dict = [{} for i in range(2)]
+    results_dict_by_layer = [{} for i in range(2)]
+    model_name_2_array = model_name_1.split('_')
+    seed = int(model_name_2_array[-1])
+    model_name_2_array[-1] = str(seed + 2)
+    model_name_2 = '_'.join(model_name_2_array)
+    model_names = [model_name_1, model_name_2]
+    for i, model_name in enumerate(model_names):
+        for layer in LAYERS:
+            results = {}
+            players = []
+            for model_type in [task]:
+                ## CB directory
+                run_name = '%s_%s_%s' % (model_name, layer, model_type)
+                run_dir = os.path.join(DIR, run_name)
+
+                players = get_players(run_dir)
+                instatiate_chosen_players(run_dir, players)    
+                results[model_type] = get_results_list(run_dir)
+                players_dict[i][layer] = players
+                results_dict_by_layer[i][layer] = results
+    print(results_dict_by_layer[0]['features.10'])
+    plot_cross_seed_scatter(players_dict[0], results_dict_by_layer[0], \
+        players_dict[1], results_dict_by_layer[1], LAYERS, task, "Random Weights", f"Pretrained on {"Grasp" if task == "cls" else "Recognition"}")
+
+    
+    
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
+    
+    init_cross_seed("cls")
+    exit()
     model_name = params.MODEL_NAME_SEED
 
     players_dict = {}
@@ -567,4 +686,4 @@ if __name__ == '__main__':
     # ax.set_title('Correlation in Neuron Shapley Values Between Tasks Across Layers')
     # plt.savefig('vis/shap/layer_corr/all_layers.png')
 
-    #plot_all_layer_scatter(players_dict, results_dict_by_layer, LAYERS)
+    plot_all_layer_scatter(players_dict, results_dict_by_layer, LAYERS)
