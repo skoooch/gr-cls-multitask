@@ -39,7 +39,7 @@ torch.cuda.manual_seed(SEED)
 
 MODEL_NAME = params.MODEL_NAME_SEED
 MODEL_PATH = params.MODEL_WEIGHT_PATH_SEED
-model = Multi_AlexnetMap_v3().to("cuda")
+model = Multi_AlexnetMap_v3().to(params.DEVICE)
 model.load_state_dict(torch.load(MODEL_PATH))
 model.eval()
 path = params.TEST_PATH

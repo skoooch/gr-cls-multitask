@@ -1,2 +1,9 @@
 48462/48491 = seed 32 - grasp only model
  - layer 2 and 3 failed for 48462, reran 2 and 3 with 48491
+
+48496= = seed 34 - grasp, pretrained on cls : 2026-02-27 11:42
+  - all layers ran successfully 
+
+2026-02-28 9:42 scancelled 48462_1 and 48491_1 as they had converged.
+
+48642_[2-3] = seed 32 : 2026-02-28 9:42
