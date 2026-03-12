@@ -45,7 +45,7 @@ from training_utils.loss import MapLoss, DistillationLoss
 
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 import shutil
-task = "cls"
+task = "grasp"
 opposite_pretrained = True
 params = Params() 
 paths = Path()
@@ -68,9 +68,9 @@ model =  Multi_AlexnetMap_v3().to(params.DEVICE)
 # Load model
 if opposite_pretrained:
     if task == "grasp":
-        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("34", "31")
+        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("36", "31")
     else:
-        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("33", "32")
+        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("35", "32")
     weight_dict = torch.load(MODEL_PATH)
     filtered_dict = {k:weight_dict[k] for k in weight_dict if "features" in k and int(k.split('.')[1]) < 11}
 
@@ -92,8 +92,8 @@ patience_counter = 0
 best_model_path = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_best.pth")
 
 for epoch in tqdm(range(1, params.EPOCHS + 1)):
-    if epoch == 10:
-        model.unfreeze_depth_backbone()
+    # if epoch == 10:
+    #     model.unfreeze_depth_backbone()
 
     train_history = []
     val_history = []
@@ -124,14 +124,14 @@ for epoch in tqdm(range(1, params.EPOCHS + 1)):
             optim.step()
 
             # Write loss to log file -- 'logs/<model_name>/<model_name>_log.txt'
-            # log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=True)
+            log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=True)
             train_history.append(loss)
             # Dummie prediction stats
             correct, total = 0, 1
             train_correct += correct
             train_total += total
         else:
-            # log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=False)
+            log_writer(params.MODEL_NAME, epoch, step, loss.item(), train=False)
             val_history.append(loss)
             # Dummie prediction stats
             correct, total = 0, 1
