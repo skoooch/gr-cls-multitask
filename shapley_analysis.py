@@ -12,7 +12,7 @@ import shutil
 from matplotlib.ticker import MaxNLocator, FixedLocator
 
 # Experiment parameters
-TYPES = ['grasp']
+TYPES = ['cls']
 LAYERS = ['first','features.0','features.4', 'features.7', 'features.10']
 
 LAYERS = ['first','features.0','features.4', 'features.7', 'features.10']
@@ -489,7 +489,7 @@ def plot_all_layer_scatter(players_dict, results_dict_by_layer, layers):
 
 def plot_cross_seed_scatter(players_dict_seed1, results_dict_seed1, 
                              players_dict_seed2, results_dict_seed2, 
-                             layers, task, seed1_label='Seed 1', seed2_label='Seed 2'):
+                             layers, task, seed1_label='Seed 1', seed2_label='Seed 2', dif_task = False):
     '''
     Plot correlation in neuron shapley values for the same task
     between two differently-seeded models, across layers.
@@ -516,9 +516,8 @@ def plot_cross_seed_scatter(players_dict_seed1, results_dict_seed1,
             return sums / (counts + 1e-12)
 
         x = compute_vals(players1, results1, task)
-        y = compute_vals(players2, results2, task)
-        print(x)
-        print(y)
+        
+        y = compute_vals(players2, results2, task if (dif_task == False) else ["grasp", "cls"][task == "grasp"])
         # Bootstrapped Pearson correlation
         n_bootstrap = 1000
         rng = np.random.default_rng(seed=42)
@@ -597,9 +596,37 @@ def init_cross_seed(task = "cls"):
                 results[model_type] = get_results_list(run_dir)
                 players_dict[i][layer] = players
                 results_dict_by_layer[i][layer] = results
-    print(results_dict_by_layer[0]['features.10'])
     plot_cross_seed_scatter(players_dict[0], results_dict_by_layer[0], \
         players_dict[1], results_dict_by_layer[1], LAYERS, task, "Random Weights", f"Pretrained on {"Grasp" if task == "cls" else "Recognition"}")
+
+def init_cross_seed_dif_task(task = "cls"): # here task defines the pretrained task
+    model_name_1 = params.MODEL_NAME_SEED
+
+    players_dict = [{} for i in range(2)]
+    results_dict_by_layer = [{} for i in range(2)]
+    model_name_2_array = model_name_1.split('_')
+    seed = int(model_name_2_array[-1])
+    model_name_2_array[-1] = str(seed + 1) if seed == 32 else str(seed + 3)
+    model_name_2 = '_'.join(model_name_2_array)
+    model_names = [model_name_1, model_name_2]
+    tasks = [task, "grasp" if task == "cls" else "cls"]
+    for i, model_name in enumerate(model_names):
+        for layer in LAYERS:
+            results = {}
+            players = []
+            for model_type in [tasks[i]]:
+                ## CB directory
+                run_name = '%s_%s_%s' % (model_name, layer, model_type)
+                run_dir = os.path.join(DIR, run_name)
+
+                players = get_players(run_dir)
+                instatiate_chosen_players(run_dir, players)    
+                results[model_type] = get_results_list(run_dir)
+                players_dict[i][layer] = players
+                results_dict_by_layer[i][layer] = results
+    plot_cross_seed_scatter(players_dict[0], results_dict_by_layer[0], \
+        players_dict[1], results_dict_by_layer[1], LAYERS, task, "Grasping" if task == "grasp" else "Recognition",\
+        f"{"Grasping" if task != "grasp" else "Recognition"} Pretrained on {"Grasp" if task == "grasp" else "Recognition"}", dif_task=True)
 
     
     
@@ -607,7 +634,7 @@ if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
     
-    init_cross_seed("cls")
+    init_cross_seed_dif_task("grasp")
     exit()
     model_name = params.MODEL_NAME_SEED
 
@@ -686,4 +713,4 @@ if __name__ == '__main__':
     # ax.set_title('Correlation in Neuron Shapley Values Between Tasks Across Layers')
     # plt.savefig('vis/shap/layer_corr/all_layers.png')
 
-    plot_all_layer_scatter(players_dict, results_dict_by_layer, LAYERS)
+    #plot_all_layer_scatter(players_dict, results_dict_by_layer, LAYERS)
