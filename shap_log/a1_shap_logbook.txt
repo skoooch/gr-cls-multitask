@@ -1,0 +1,20 @@
+850 = seed 33 single task pretrained on grasp
+854 = seed 33 single task pretrained on grasp
+
+2026-02-28 9:52 : seed 33 layer 0,1,2 have converged - ending shapley 
+
+866 = seed 31 single task : 2026-02-28 9:52 
+
+2026-02-28 18:48 : 850 seed 33 layer 3,4 have converged - ending shapley
+                 : 866_1 866_2 cancelled (converged)
+
+2026-02-28 19:09 : 890 seed 34 grasp task pretrained on cls 
+
+2026-02-28 19:15 : 893 seed 32 grasp task 
+
+2026-03-01 12:22 : cancelled 866_3, 866_4
+
+
+
+
+
