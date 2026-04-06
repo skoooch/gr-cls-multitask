@@ -19,7 +19,8 @@ METHOD_DESCRIPTIONS = {
 LAYERS = ['rgb_features.0', 'features.0','features.4','features.7','features.10']
 SIZES = [128, 32,64,64,64]
 C_SIZES = [3*128, 128*32,32*64,64*64,64*64]
-
+PRETRAIN_EXP = True
+PRETRAIN_EXP_TASK = "cls"
 font_manager._load_fontmanager(try_read_cache=False)
 font_path = 'ARIAL.TTF'  # Replace with the actual path
 font_entry = font_manager.FontEntry(fname=font_path, name='MyCustomFontName')
@@ -618,9 +619,12 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
 
     counts_on: 'base' or 'refined' - which graph to use for edge counting.
     """
-    shap_values = np.load("shap_arrays/shap_values.npy")
-    shap_values[:,:,0] /= 65
-    shap_values[:,:,1] /= 81.5
+    if not PRETRAIN_EXP: 
+        shap_values = np.load("shap_arrays/shap_values.npy")
+        shap_values[:,:,0] /= 65
+        shap_values[:,:,1] /= 81.5
+    else:
+        shap_values = np.load("shap_arrays/shap_values.npy")
     base_graph = pickle.load(open(graph_path,'rb'))
     refined = get_refined_graphs([base_graph], add_start=False, refinedness=refinedness, half_layer_2=True)[0]
 
@@ -745,7 +749,7 @@ if __name__ == "__main__":
     weight = True
     cross = True
     remove_cross = True
-    plot_transition_chi(save_path=f'vis/chi2/remove_cross_{'weight' if weight else 'count'}_{'cross_' if cross else ''}chi_per_transition_significance.png', 
+    plot_transition_chi(save_path=f'vis/chi2/{'remove_cross_' if remove_cross else ''}{'weight' if weight else 'count'}_{'cross_' if cross else ''}chi_per_transition_significance.png', 
                         title=f"{'Weighted' if weight else 'Unweighted'}Per-transition Chi-sqaure", 
                         cross=cross, remove_cross=remove_cross)
 
