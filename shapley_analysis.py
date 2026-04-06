@@ -15,7 +15,7 @@ from matplotlib.ticker import MaxNLocator, FixedLocator
 TYPES = ['cls']
 LAYERS = ['first','features.0','features.4', 'features.7', 'features.10']
 
-LAYERS = ['first','features.0','features.4', 'features.7', 'features.10']
+# LAYERS = ['first','features.0']
 
 
 R = 100.
