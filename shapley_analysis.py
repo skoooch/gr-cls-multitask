@@ -570,7 +570,7 @@ def plot_cross_seed_scatter(players_dict_seed1, results_dict_seed1,
         inset_ax.set_ylabel(seed2_label, fontsize=6, labelpad=1)
         inset_ax.tick_params(axis='both', which='major', labelsize=6)
 
-    plt.savefig(f'vis/shap/layer_corr/cross_seed_{task}_{"_".join([seed1_label, seed2_label])}.png', dpi=300)
+    plt.savefig(f'vis/shap/layer_corr/test_cross_seed_{task}_{"_".join([seed1_label, seed2_label])}.png', dpi=300)
     plt.close()
 def init_cross_seed(task = "cls"):
     model_name_1 = params.MODEL_NAME_SEED
@@ -606,7 +606,7 @@ def init_cross_seed_dif_task(task = "cls"): # here task defines the pretrained t
     results_dict_by_layer = [{} for i in range(2)]
     model_name_2_array = model_name_1.split('_')
     seed = int(model_name_2_array[-1])
-    model_name_2_array[-1] = str(seed + 1) if seed == 32 else str(seed + 3)
+    model_name_2_array[-1] = str(seed + 3) if seed == 32 else str(seed + 5) 
     model_name_2 = '_'.join(model_name_2_array)
     model_names = [model_name_1, model_name_2]
     tasks = [task, "grasp" if task == "cls" else "cls"]
@@ -628,12 +628,59 @@ def init_cross_seed_dif_task(task = "cls"): # here task defines the pretrained t
         players_dict[1], results_dict_by_layer[1], LAYERS, task, "Grasping" if task == "grasp" else "Recognition",\
         f"{"Grasping" if task != "grasp" else "Recognition"} Pretrained on {"Grasp" if task == "grasp" else "Recognition"}", dif_task=True)
 
-    
-    
+def save_shap_vals_dif_task(task = "cls"):
+    model_name_1 = params.MODEL_NAME_SEED
+    top_k = 128
+    final = np.zeros((5, top_k, 2))
+    players_dict = [{} for i in range(2)]
+    results_dict_by_layer = [{} for i in range(2)]
+    model_name_2_array = model_name_1.split('_')
+    seed = int(model_name_2_array[-1])
+    model_name_2_array[-1] = str(seed + 3) if seed == 32 else str(seed + 5)
+    model_name_2 = '_'.join(model_name_2_array)
+    model_names = [model_name_1, model_name_2]
+    tasks = [task, "grasp" if task == "cls" else "cls"]
+    for i, model_name in enumerate(model_names):
+        for layer in LAYERS:
+            results = {}
+            players = []
+            for model_type in [tasks[i]]:
+                ## CB directory
+                run_name = '%s_%s_%s' % (model_name, layer, model_type)
+                run_dir = os.path.join(DIR, run_name)
+                players = get_players(run_dir)
+                instatiate_chosen_players(run_dir, players)    
+                results[model_type] = get_results_list(run_dir)
+                players_dict[i][layer] = players
+                results_dict_by_layer[i][layer] = results
+            vals = {}
+        for task in results.keys():
+            squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
+            for result in results[task]:
+                mem_tmc = get_result(result)
+                sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
+                squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
+                counts += np.sum(mem_tmc != -1, 0)
+            # No. of iterations for each neuron
+            counts = np.clip(counts, 1e-12, None)
+            # Expected shapley values of each neuron
+            vals[task] = sums / (counts + 1e-12)
+        # Assuming vals is already calculated for the two tasks:
+        task_1 = list(results.keys())[0]  # Access the first task
+        task_2 = list(results.keys())[1]  # Access the second task
+        # Extract the values for both tasks
+        vals_task_1 = vals[task_1]
+        vals_task_2 = vals[task_2]
+        final[i,:len(vals_task_1),0] = vals_task_1
+        final[i,:len(vals_task_2),1] = vals_task_2
+    np.save(f'shap_arrays/shap_values_pretrain_{task}.npy', final)
+        
+            
+        
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
-    
+    #save_shap_vals_dif_task("cls")
     init_cross_seed_dif_task("grasp")
     exit()
     model_name = params.MODEL_NAME_SEED
