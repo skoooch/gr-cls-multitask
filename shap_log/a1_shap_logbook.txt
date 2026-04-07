@@ -14,6 +14,9 @@
 
 2026-03-01 12:22 : cancelled 866_3, 866_4
 
+2026-03-12 16:17 : 1018 seed 35 cls task pretrained on grasp (frozen)
+                 : 1012 seed 36 grasp task pretrained on cls (frozen)
+
 
 
 
