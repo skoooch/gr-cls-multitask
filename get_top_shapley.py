@@ -92,6 +92,7 @@ if __name__ == '__main__':
     top_k = 128
     values = False
     diff = True
+    pretrain_exp = True
     model_name = params.MODEL_NAME
     final = np.zeros((5, top_k, 2))
     for i, layer in enumerate(LAYERS):
