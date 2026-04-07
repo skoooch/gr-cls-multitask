@@ -652,7 +652,6 @@ def save_shap_vals_dif_task(task = "cls"):
                 ## CB directory
                 run_name = '%s_%s_%s' % (model_name, layer, model_type)
                 run_dir = os.path.join(DIR, run_name)
-
                 players = get_players(run_dir)
                 instatiate_chosen_players(run_dir, players)    
                 results[model_type] = get_results_list(run_dir)
