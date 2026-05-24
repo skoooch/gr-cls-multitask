@@ -109,7 +109,7 @@ class Multi_AlexnetMap_v3(nn.Module):
         for param in self.d_features.parameters():
             param.requires_grad = False
         for param in self.features.parameters(): # only for experiment on opposite pretrained
-            param.requires_grad = False
+            param.requires_grad = True
         # xavier initialization for combined feature extractor
         for m in self.features.modules():
             if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d, nn.Linear)):
