@@ -624,7 +624,10 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
         shap_values[:,:,0] /= 65
         shap_values[:,:,1] /= 81.5
     else:
-        shap_values = np.load("shap_arrays/shap_values.npy")
+        shap_values = np.load(f'shap_arrays/shap_values_pretrain_{PRETRAIN_EXP_TASK}.npy')
+        if PRETRAIN_EXP_TASK == 'cls':
+            shap_values[:,:,0] /= 65
+            shap_values[:,:,1] /= 81.5
     base_graph = pickle.load(open(graph_path,'rb'))
     refined = get_refined_graphs([base_graph], add_start=False, refinedness=refinedness, half_layer_2=True)[0]
 
