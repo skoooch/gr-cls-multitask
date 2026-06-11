@@ -45,7 +45,7 @@ from training_utils.loss import MapLoss, DistillationLoss
 
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 import shutil
-task = "grasp"
+task = "clS"
 opposite_pretrained = True
 params = Params() 
 paths = Path()
@@ -68,9 +68,9 @@ model =  Multi_AlexnetMap_v3().to(params.DEVICE)
 # Load model
 if opposite_pretrained:
     if task == "grasp":
-        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("36", "31")
+        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("76", "71")
     else:
-        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("35", "32")
+        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("55", "52")
     weight_dict = torch.load(MODEL_PATH)
     filtered_dict = {k:weight_dict[k] for k in weight_dict if "features" in k and int(k.split('.')[1]) < 11}
 
@@ -87,7 +87,7 @@ scheduler = torch.optim.lr_scheduler.StepLR(optim, 25, 0.5)
 
 # Early stopping setup
 best_val_loss = float('inf')
-patience = 5  # Number of epochs to wait for improvement
+patience = 10  # Number of epochs to wait for improvement
 patience_counter = 0
 best_model_path = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_best.pth")
 

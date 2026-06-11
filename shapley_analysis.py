@@ -12,8 +12,8 @@ import shutil
 from matplotlib.ticker import MaxNLocator, FixedLocator
 
 # Experiment parameters
-TYPES = ['cls']
-LAYERS = ['first','features.0','features.4', 'features.7', 'features.10'] # 
+TYPES = ['grasp']
+LAYERS = ['first', 'features.0', 'features.4', 'features.7', 'features.10'] # 
 
 # LAYERS = ['first','features.0']
 
@@ -689,9 +689,9 @@ def save_shap_vals_dif_task(task = "cls"):
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
-    save_shap_vals_dif_task("cls")
-    #init_cross_seed_dif_task("grasp")
-    exit()
+    # save_shap_vals_dif_task("cls")
+    # #init_cross_seed_dif_task("grasp")
+    # exit()
     model_name = params.MODEL_NAME_SEED
 
     players_dict = {}
