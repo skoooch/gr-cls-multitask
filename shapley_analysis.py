@@ -689,9 +689,9 @@ def save_shap_vals_dif_task(task = "cls"):
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
-    save_shap_vals_dif_task("cls")
-    #init_cross_seed_dif_task("grasp")
-    exit()
+    # save_shap_vals_dif_task("cls")
+    # #init_cross_seed_dif_task("grasp")
+    # exit()
     model_name = params.MODEL_NAME_SEED
 
     players_dict = {}

@@ -36,7 +36,7 @@ class Params:
         # 301=rgb only 
         # i think 400 is trained with weight decay/L2 reg
 
-        self.SEED = 31
+        self.SEED = 66
 
         self.MODEL_NAME_SEED = self.MODEL_NAME + f"_{self.SEED}"
         self.CLS_MODEL_NAME = 'alexnetMap_cls_top5_v3.2.2'

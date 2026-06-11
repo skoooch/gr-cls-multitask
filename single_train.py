@@ -68,7 +68,7 @@ model =  Multi_AlexnetMap_v3().to(params.DEVICE)
 # Load model
 if opposite_pretrained:
     if task == "grasp":
-        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("36", "31")
+        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("66", "61")
     else:
         MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("35", "32")
     weight_dict = torch.load(MODEL_PATH)
