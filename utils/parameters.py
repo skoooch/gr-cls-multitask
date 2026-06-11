@@ -32,6 +32,23 @@ class Params:
         # 35 = single task model cls, pretrained on grasp v2 (frozen extractions) cls accuracy = 53.25
         # 36 = single task model grasp, pretrained on cls v2 (frozen extractions) grasp accuracy = 76
         # 43-47 + no_seed = base model
+        # 51 = single task model cls v2 (trained post steven)
+        # 52 = single task model grasp v2 (trained post steven)
+        # 55 = single task model cls, pretrained on grasp v2 (frozen extractions) cls accuracy = 53.25
+        # 56 = single task model grasp, pretrained on cls v2 (frozen extractions) grasp accuracy = 76
+        # 61 = single task model cls v2 (trained post steven)
+        # 62 = single task model grasp v2 (trained post steven)
+        # 65 = single task model cls, pretrained on grasp v2 (frozen extractions) cls accuracy = 63.25
+        # 66 = single task model grasp, pretrained on cls v2 (frozen extractions) grasp accuracy = 76.25
+        # 71 = single task model cls v2 (trained post steven)
+        # 72 = single task model grasp v2 (trained post steven)
+        # 75 = single task model cls, pretrained on grasp v2 (A2000) (frozen extractions) cls accuracy = 61.75
+        # 76 = single task model grasp, pretrained on cls v2 (frozen extractions) grasp accuracy = 76.25
+        # 81 = single task model cls v2 (trained post steven)
+        # 82 = single task model grasp v2 (trained post steven)
+        # 85 = single task model cls, pretrained on grasp v2 (A2000) (frozen extractions) cls accuracy =  66.5
+        # 86 = single task model grasp, pretrained on cls v2 (A2000) (frozen extractions) grasp accuracy = 77.25
+        
         # 203=depth input only
         # 301=rgb only 
         # i think 400 is trained with weight decay/L2 reg
