@@ -83,6 +83,8 @@ def get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH
                 # Convert grasp map into single grasp prediction
                 output_grasp = map2singlegrasp(output)
                 output_grasp = torch.unsqueeze(output_grasp, dim=1).repeat(1, candidates.shape[0], 1)
+                if torch.isnan(output_grasp).any() or torch.isinf(output_grasp).any():
+                    continue
                 batch_correct, batch_total =  get_correct_grasp_preds(output_grasp, candidates[None, :, :]) #get_correct_grasp_preds_from_map(output, map)
                 correct += batch_correct
                 total += batch_total
@@ -100,8 +102,11 @@ def get_grasp_acc(model, include_depth=True, seed=None, dataset=params.TEST_PATH
                 denormalize_grasp(output)
 
                 # Convert grasp map into single grasp prediction
+                # Convert grasp map into single grasp prediction
                 output_grasp = map2singlegrasp(output)
                 output_grasp = torch.unsqueeze(output_grasp, dim=1).repeat(1, candidates.shape[1], 1)
+                if torch.isnan(output_grasp).any() or torch.isinf(output_grasp).any():
+                    continue
                 batch_correct, batch_total =  get_correct_grasp_preds(output_grasp, candidates) #get_correct_grasp_preds_from_map(output, map)
                 correct += batch_correct
                 total += batch_total
