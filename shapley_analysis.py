@@ -571,7 +571,7 @@ def plot_cross_seed_scatter(players_dict_seed1, results_dict_seed1,
         inset_ax.set_ylabel(seed2_label, fontsize=6, labelpad=1)
         inset_ax.tick_params(axis='both', which='major', labelsize=6)
 
-    plt.savefig(f'vis/shap/layer_corr/opposite_cross_seed_{task}_{"_".join([seed1_label, seed2_label])}.png', dpi=300)
+    plt.savefig(f'vis/shap/layer_corr/{params.SEED}_opposite_cross_seed_{task}_{"_".join([seed1_label, seed2_label])}.png', dpi=300)
     plt.close()
 def init_cross_seed(task = "cls", dif = 4, title=""):
     model_name_1 = params.MODEL_NAME_SEED
@@ -601,14 +601,14 @@ def init_cross_seed(task = "cls", dif = 4, title=""):
     plot_cross_seed_scatter(players_dict[0], results_dict_by_layer[0], \
         players_dict[1], results_dict_by_layer[1], LAYERS, task, {'Grasp' if task == 'grasp' else 'Recognition'}, f"{'Grasp' if task == 'cls' else 'Recognition'} Pretrained on {'Grasp' if task == 'grasp' else 'Recognition'}")
 
-def init_cross_seed_dif_task(task = "cls"): # here task defines the pretrained task
+def init_cross_seed_dif_task(task = "cls",dif = 4,): # here task defines the pretrained task
     model_name_1 = params.MODEL_NAME_SEED
 
     players_dict = [{} for i in range(2)]
     results_dict_by_layer = [{} for i in range(2)]
     model_name_2_array = model_name_1.split('_')
     seed = int(model_name_2_array[-1])
-    model_name_2_array[-1] = str(seed + 3) if seed == 32 else str(seed + 5)
+    model_name_2_array[-1] = str(seed + dif)
     model_name_2 = '_'.join(model_name_2_array)
     model_names = [model_name_1, model_name_2]
     tasks = [task, "grasp" if task == "cls" else "cls"]
@@ -689,9 +689,15 @@ def save_shap_vals_dif_task(task = "cls"):
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
-    # save_shap_vals_dif_task("cls")
-    # #init_cross_seed_dif_task("grasp")
-    # exit()
+    #save_shap_vals_dif_task("cls")
+    if str(params.SEED)[-1] in ["1", "5"]:
+        task = "cls"
+        diff = 5
+    else:
+        task = "grasp"
+        diff = 3
+    init_cross_seed_dif_task(task, dif = diff )
+    exit()
     model_name = params.MODEL_NAME_SEED
 
     players_dict = {}
