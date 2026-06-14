@@ -573,6 +573,100 @@ def plot_cross_seed_scatter(players_dict_seed1, results_dict_seed1,
 
     plt.savefig(f'vis/shap/layer_corr/{params.SEED}_opposite_cross_seed_{task}_{"_".join([seed1_label, seed2_label])}.png', dpi=300)
     plt.close()
+    
+def plot_cross_seed_scatter_avr(players_dict_seed1_arr, results_dict_seed1_arr, 
+                             players_dict_seed2_arr, results_dict_seed2_arr, 
+                             layers, task, seed1_label='Seed 1', seed2_label='Seed 2', dif_task = False):
+    '''
+    Plot correlation in neuron shapley values for the same task
+    between two differently-seeded models, across layers.
+    Mirrors the structure of plot_all_layer_scatter.
+    '''
+    r_values = []
+    scatter_data = []
+    confidence_intervals = []
+    
+    for layer_i, layer in enumerate(layers):
+        x = np.zeros(len(players_dict_seed1_arr[0][layer]) * len(players_dict_seed1_arr))
+        y = np.zeros(len(players_dict_seed2_arr[0][layer]) * len(players_dict_seed2_arr))
+        for seed_i in range(len(players_dict_seed1_arr)):
+            players1 = players_dict_seed1_arr[seed_i][layer]
+            players2 = players_dict_seed2_arr[seed_i][layer]
+            results1 = results_dict_seed1_arr[seed_i][layer]
+            results2 = results_dict_seed2_arr[seed_i][layer]
+
+            def compute_vals(players, results, task):
+                squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
+                for result in results[task]:
+                    mem_tmc = get_result(result)
+                    sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
+                    squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
+                    counts += np.sum(mem_tmc != -1, 0)
+                counts = np.clip(counts, 1e-12, None)
+                return sums / (counts + 1e-12)
+
+            x_curr = compute_vals(players1, results1, task)
+            
+            y_curr = compute_vals(players2, results2, task if (dif_task == False) else ["grasp", "cls"][task == "grasp"])
+            
+            # Bootstrapped Pearson correlation
+            x[seed_i * len(players1): (seed_i + 1) * len(players1)] = x_curr
+            y[seed_i * len(players2): (seed_i + 1) * len(players2)] = y_curr
+            
+        n_bootstrap = 1000
+        rng = np.random.default_rng(seed=42)
+        r_bootstrap = []
+        min_len = min(len(x), len(y))
+        x_trim, y_trim = x[:min_len], y[:min_len]
+        for _ in range(n_bootstrap):
+            idx = rng.integers(0, min_len, min_len)
+            r, _ = stats.pearsonr(x_trim[idx], y_trim[idx])
+            r_bootstrap.append(r)
+        r_bootstrap = np.array(r_bootstrap)
+        r_mean = np.mean(r_bootstrap)
+        r_ci_lower = np.percentile(r_bootstrap, 2.5)
+        r_ci_upper = np.percentile(r_bootstrap, 97.5)
+
+        r_values.append(r_mean)
+        confidence_intervals.append((r_ci_lower, r_ci_upper))
+        scatter_data.append((x_trim, y_trim, r_mean, layer))
+
+    # Plot main correlation line with inset scatters
+    fig, ax = plt.subplots(figsize=(10, 8))
+    x_values = np.arange(1, len(r_values) + 1)
+
+    lower_bounds = [ci[0] for ci in confidence_intervals]
+    upper_bounds = [ci[1] for ci in confidence_intervals]
+
+    ax.errorbar(x_values, r_values,
+                yerr=[np.abs(np.array(r_values) - np.array(lower_bounds)),
+                      np.abs(np.array(upper_bounds) - np.array(r_values))],
+                fmt='o', capsize=5, linestyle='--', color="black")
+
+    ax.set_xticks(x_values)
+    ax.xaxis.set_major_locator(plt.FixedLocator(x_values[::2]))
+    ax.axhline(0, color='gray', linewidth=0.7, linestyle='-')
+    ax.set_ylabel('Correlation (r-value)', labelpad=2, fontsize=14)
+    ax.set_xlabel('Feature extraction layer', labelpad=1.5, fontsize=14)
+    ax.set_title(f'{"Grasp" if task == "grasp" else "Recognition"} Task vs {"Grasp" if task == "cls" else "Recognition"} Pretrained on {"Grasp" if task == "grasp" else "Recognition"}', fontsize=18)
+
+    fig.subplots_adjust(bottom=0.35)
+    for i, (x, y, r, layer) in enumerate(scatter_data):
+        inset_width = 0.12
+        inset_height = 0.18
+        left = 0.13 + i * (0.83 / len(scatter_data))
+        bottom = 0.08
+
+        inset_ax = fig.add_axes([left, bottom, inset_width, inset_height])
+        inset_ax.scatter(x, y, alpha=0.7, color="black")
+        inset_ax.set_title(f'r = {r:.2f}', fontsize=8)
+        inset_ax.set_xlabel(seed1_label, fontsize=6, labelpad=1)
+        inset_ax.set_ylabel(seed2_label, fontsize=6, labelpad=1)
+        inset_ax.tick_params(axis='both', which='major', labelsize=6)
+
+    plt.savefig(f'vis/shap/layer_corr/avr_opposite_cross_seed_{task}_{"_".join([seed1_label, seed2_label])}.png', dpi=300)
+    plt.close()
+    
 def init_cross_seed(task = "cls", dif = 4, title=""):
     model_name_1 = params.MODEL_NAME_SEED
 
@@ -629,6 +723,45 @@ def init_cross_seed_dif_task(task = "cls",dif = 4,): # here task defines the pre
     plot_cross_seed_scatter(players_dict[0], results_dict_by_layer[0], \
         players_dict[1], results_dict_by_layer[1], LAYERS, task, 'Grasping' if task == 'grasp' else 'Recognition',\
         f"{'Grasping' if task != 'grasp' else 'Recognition'} Pretrained on {'Grasp' if task == 'grasp' else 'Recognition'}", dif_task=True)
+
+def init_cross_seed_dif_task_avr(task = "cls",dif = 4,seeds=[51]): # here task defines the pretrained task
+    players_dict_1 = []
+    players_dict_2 = []
+    results_dict_1 = []
+    results_dict_2 = []
+    for seed in seeds:
+        model_name_1 = 'multiAlexMap_top5_v1.5' + f'_{seed}'
+        players_dict = [{} for i in range(2)]
+        results_dict_by_layer = [{} for i in range(2)]
+        model_name_2_array = model_name_1.split('_')
+        seed = int(model_name_2_array[-1])
+        model_name_2_array[-1] = str(seed + dif)
+        model_name_2 = '_'.join(model_name_2_array)
+        model_names = [model_name_1, model_name_2]
+        tasks = [task, "grasp" if task == "cls" else "cls"]
+        for i, model_name in enumerate(model_names):
+            for layer in LAYERS:
+                results = {}
+                players = []
+                for model_type in [tasks[i]]:
+                    ## CB directory
+                    run_name = '%s_%s_%s' % (model_name, layer, model_type)
+                    run_dir = os.path.join(DIR, run_name)
+
+                    players = get_players(run_dir)
+                    instatiate_chosen_players(run_dir, players)    
+                    results[model_type] = get_results_list(run_dir)
+                    players_dict[i][layer] = players
+                    results_dict_by_layer[i][layer] = results
+        players_dict_1.append(players_dict[0])
+        players_dict_2.append(players_dict[1])
+        results_dict_1.append(results_dict_by_layer[0])
+        results_dict_2.append(results_dict_by_layer[1])
+        
+    plot_cross_seed_scatter_avr(players_dict_1, results_dict_1, \
+        players_dict_2, results_dict_2, LAYERS, task, 'Grasping' if task == 'grasp' else 'Recognition',\
+        f"{'Grasping' if task != 'grasp' else 'Recognition'} Pretrained on {'Grasp' if task == 'grasp' else 'Recognition'}", dif_task=True)
+
 
 def save_shap_vals_dif_task(task = "cls"):
     top_k = 128
@@ -689,14 +822,15 @@ def save_shap_vals_dif_task(task = "cls"):
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
-    #save_shap_vals_dif_task("cls")
+    init_cross_seed_dif_task_avr("grasp", dif = 3, seeds = [32, 62, 72, 82])
+    exit()
     if str(params.SEED)[-1] in ["1", "5"]:
         task = "cls"
         diff = 5
     else:
         task = "grasp"
         diff = 3
-    init_cross_seed_dif_task(task, dif = diff )
+    init_cross_seed_dif_task(task, dif = diff)
     exit()
     model_name = params.MODEL_NAME_SEED
 
