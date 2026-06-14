@@ -45,7 +45,8 @@ from training_utils.loss import MapLoss, DistillationLoss
 
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 import shutil
-task = "clS"
+
+task = "cls"
 opposite_pretrained = True
 params = Params() 
 paths = Path()
@@ -70,7 +71,7 @@ if opposite_pretrained:
     if task == "grasp":
         MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("66", "61")
     else:
-        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("55", "52")
+        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("95", "52")
     weight_dict = torch.load(MODEL_PATH)
     filtered_dict = {k:weight_dict[k] for k in weight_dict if "features" in k and int(k.split('.')[1]) < 11}
 
