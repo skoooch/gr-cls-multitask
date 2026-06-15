@@ -47,7 +47,7 @@ from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 import shutil
 
 task = "cls"
-opposite_pretrained = True
+opposite_pretrained = False
 params = Params() 
 paths = Path()
 SEED = params.SEED
@@ -69,7 +69,7 @@ model =  Multi_AlexnetMap_v3().to(params.DEVICE)
 # Load model
 if opposite_pretrained:
     if task == "grasp":
-        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("66", "61")
+        MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("67", "61")
     else:
         MODEL_PATH = os.path.join(params.MODEL_LOG_PATH, f"{params.MODEL_NAME}_{SEED}_final.pth").replace("95", "52")
     weight_dict = torch.load(MODEL_PATH)
