@@ -1,5 +1,5 @@
 Chi-square Weighted specialization analysis
-Timestamp: 2026-04-07 19:41:19
+Timestamp: 2026-06-15 16:57:46
 Graph path: graphs/just_weights3.pickle
 Refinedness: 32
 Counts on: base
@@ -8,23 +8,23 @@ Methods run: topk_each, effect
 
 Method: topk_each
 Description: Per layer pick top-k kernels by SHAP for each task; overlaps (in both top-k) become no_pref. Simple rank-based selectivity.
-Total Chi-square=179.535, dof=3, p=1.112e-38
+Total Chi-square=22.944, dof=3, p=4.148e-05
 Transition		Spec	No_pref	Cross	Chi2	Cross Chi2
-rgb_features.0->features.0	56.000	1936.000	56.000	N/A, (p=N/A)	N/A, (p=N/A)	
-features.0->features.4	56.000	1936.000	56.000	0.000, (p=1)	0.000, (p=1)	
-features.4->features.7	336.000	3424.000	336.000	76.921, (p=1.779e-18)	76.921, (p=1.779e-18)	
-features.7->features.10	408.000	3280.000	408.000	9.366, (p=0.002211)	9.366, (p=0.002211)	
+rgb_features.0->features.0	8.000	2032.000	8.000	N/A, (p=N/A)	N/A, (p=N/A)	
+features.0->features.4	40.000	1968.000	40.000	22.106, (p=2.58e-06)	22.106, (p=2.58e-06)	
+features.4->features.7	42.000	4016.000	38.000	-9.226, (p=0.002386)	-11.760, (p=0.000605)	
+features.7->features.10	51.000	4008.000	37.000	0.879, (p=0.3485)	0.000, (p=0.9153)	
 
 ----------------------------------------------------------------------
 
 Method: effect
 Description: Uses normalized difference (effect size style); assigns if |(c-g)/( |c|+|g| )| exceeds threshold; otherwise no_pref.
-Total Chi-square=28.259, dof=3, p=3.204e-06
+Total Chi-square=54.318, dof=3, p=9.598e-12
 Transition		Spec	No_pref	Cross	Chi2	Cross Chi2
-rgb_features.0->features.0	131.000	1816.000	101.000	N/A, (p=N/A)	N/A, (p=N/A)	
-features.0->features.4	137.000	1816.000	95.000	0.125, (p=0.7236)	-0.174, (p=0.6763)	
-features.4->features.7	391.000	3342.000	363.000	18.215, (p=1.973e-05)	39.207, (p=3.811e-10)	
-features.7->features.10	297.000	3498.000	301.000	-15.891, (p=6.708e-05)	-8.171, (p=0.004257)	
+rgb_features.0->features.0	252.000	1775.000	21.000	N/A, (p=N/A)	N/A, (p=N/A)	
+features.0->features.4	243.000	1749.000	56.000	-0.051, (p=0.8219)	16.079, (p=6.077e-05)	
+features.4->features.7	360.000	3682.000	54.000	-16.080, (p=6.071e-05)	-17.175, (p=3.409e-05)	
+features.7->features.10	306.000	3790.000	0.000	-5.581, (p=0.01815)	-55.176, (p=1.102e-13)	
 
 ----------------------------------------------------------------------
 

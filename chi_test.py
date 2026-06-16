@@ -9,6 +9,7 @@ from matplotlib import font_manager
 from datetime import datetime
 import scipy.stats as stats
 import os
+from utils.parameters import Params
 from graph_test_3 import get_refined_graphs
 METHOD_DESCRIPTIONS = {
     'topk_each': "Per layer pick top-k kernels by SHAP for each task; overlaps (in both top-k) become no_pref. Simple rank-based selectivity.",
@@ -20,12 +21,17 @@ LAYERS = ['rgb_features.0', 'features.0','features.4','features.7','features.10'
 SIZES = [128, 32,64,64,64]
 C_SIZES = [3*128, 128*32,32*64,64*64,64*64]
 PRETRAIN_EXP = True
-PRETRAIN_EXP_TASK = "grasp"
+params = Params()
+if str(params.SEED)[-1] in ["1", "5"]:
+        PRETRAIN_EXP_TASK = "cls"
+else:
+        PRETRAIN_EXP_TASK = "grasp"
 font_manager._load_fontmanager(try_read_cache=False)
 font_path = 'ARIAL.TTF'  # Replace with the actual path
 font_entry = font_manager.FontEntry(fname=font_path, name='MyCustomFontName')
 font_manager.fontManager.ttflist.insert(0, font_entry) # Add to the beginning of the list
 plt.rcParams['font.family'] = ['MyCustomFontName'] # Set as default
+
 
 
 def compute_per_transition_chi_p(spec_counts, other_counts, cross_counts, cross=False, remove_cross=False):
@@ -134,8 +140,8 @@ def plot_transition_chi(save_path='chi_per_transition_significance.png',
     plt.xticks(x, transition_names, rotation=0)
     plt.xlabel("Layer transition")
     plt.ylabel("Chi-square (transition vs rest)")
-    if cross: plt.ylim(top=15)
-    else: plt.ylim(top=20)
+    # if cross: plt.ylim(top=15)
+    # else: plt.ylim(top=20)
     
     plt.title(title)
     handles = [
@@ -196,7 +202,7 @@ def plot_transition_chi(save_path='chi_per_transition_significance.png',
                 fix_labels(autopct, tooclose = 0.15, sepfactor=3.5)
                 ax.set_title(transition_names[i])
             method_fname = f"{res['method']}_pie.png"
-            save_p = os.path.join(out_dir, f'{'chi_lib' if not thresh_i else 'chi_strict'}' + f'{f'pretrain_{PRETRAIN_EXP_TASK}_' if PRETRAIN_EXP else ''}' + method_fname)
+            save_p = os.path.join(out_dir, f'{'chi_lib' if not thresh_i else 'chi_strict'}' + f'{f'pretrain_{PRETRAIN_EXP_TASK}_' if PRETRAIN_EXP else ''}'+ f'_{params.SEED}_' + method_fname)
             fig.suptitle(res['method'])
             handles = [
                 Patch(facecolor='lightgray', edgecolor='k', label='no preference'),
@@ -204,7 +210,7 @@ def plot_transition_chi(save_path='chi_per_transition_significance.png',
                 Patch(facecolor='blue', edgecolor='k', label='grasp'),
                 Patch(facecolor='purple', edgecolor='k', label='cross'),
             ]
-            fig.legend(handles=handles, loc='lower right', frameon=False, fontsize=10)
+            #fig.legend(handles=handles, loc='lower right', frameon=False, fontsize=10)
             fig.savefig(save_p, dpi=300)
             plt.close(fig)
             print(f"Saved pie chart to {save_p}")
@@ -244,7 +250,8 @@ def build_node_types_advanced(shap_values,
     for l, layer in enumerate(LAYERS):
         # Determine actual channel count if variable; else assume K_max
         k_count = shap_values[l,:,0].shape[0]
-        k_count = layer_count[l]
+        
+        k_count = layer_count[l] * 5
         vals_class = shap_values[l,:k_count,0]
         vals_grasp = shap_values[l,:k_count,1]
 
@@ -624,7 +631,7 @@ def run_chi_square_specialization(graph_path='graphs/just_weights.pickle',
         shap_values[:,:,0] /= 65
         shap_values[:,:,1] /= 81.5
     else:
-        shap_values = np.load(f'shap_arrays/shap_values_opposite_pretrain_{PRETRAIN_EXP_TASK}.npy')
+        shap_values = np.load(f'shap_arrays/shap_values_opposite_pretrain_{PRETRAIN_EXP_TASK}_{params.SEED}.npy')
         for i in range(shap_values.shape[0]):
             
             shap_values[i, :, 0] /= shap_values[i, :, 0].sum()
@@ -753,7 +760,7 @@ if __name__ == "__main__":
     weight = False
     cross = False
     remove_cross = True
-    plot_transition_chi(save_path=f'vis/chi2/{f'pretrain{PRETRAIN_EXP_TASK}_' if PRETRAIN_EXP else '' }{'remove_cross_' if remove_cross else ''}{'weight' if weight else 'count'}_{'cross_' if cross else ''}chi_per_transition_significance.png', 
+    plot_transition_chi(save_path=f'vis/chi2/{f'pretrain{PRETRAIN_EXP_TASK}_' if PRETRAIN_EXP else '' }{'remove_cross_' if remove_cross else ''}{'weight' if weight else 'count'}_{'cross_' if cross else ''}chi_per_transition_significance_{params.SEED}.png', 
                         title=f"{'Weighted' if weight else 'Unweighted'}Per-transition Chi-sqaure", 
                         cross=cross, remove_cross=remove_cross)
 

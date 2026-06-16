@@ -49,6 +49,11 @@ class Params:
         # 85 = single task model cls, pretrained on grasp v2 (A2000) (frozen extractions) cls accuracy =  66.5
         # 86 = single task model grasp, pretrained on cls v2 (A2000) (frozen extractions) grasp accuracy = 77.25
         
+        
+        # 95 = 55
+        # 67 = 66
+        # 70 = 71
+        
         # 203=depth input only
         # 301=rgb only 
         # i think 400 is trained with weight decay/L2 reg
