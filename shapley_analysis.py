@@ -846,10 +846,10 @@ def concatenate_shap_arrays(task = "cls", seeds = [31,51,81]):
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
-    concatenate_shap_arrays("grasp", seeds = [32, 52, 62, 72, 82])
-    init_cross_seed_dif_task_avr(seeds = [[31, 51,81], [32, 52, 62, 72, 82]])
-    exit()
-    if str(params.SEED)[-1] in ["1", "5"]:
+    # concatenate_shap_arrays("grasp", seeds = [32, 52, 62, 72, 82])
+    # init_cross_seed_dif_task_avr(seeds = [[31, 51,81], [32, 52, 62, 72, 82]])
+    # exit()
+    if str(params.SEED)[-1] in ["1", "5", "0"]:
         task = "cls"
         diff = 5
     else:
@@ -859,8 +859,8 @@ if __name__ == '__main__':
             diff += 40
     # save_shap_vals_dif_task(task, dif = diff)
     # exit()
-    init_cross_seed_dif_task(task, dif = diff)
-    exit()
+    # init_cross_seed_dif_task(task, dif = diff)
+    # exit()
     model_name = params.MODEL_NAME_SEED
 
     players_dict = {}

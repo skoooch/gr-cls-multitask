@@ -46,8 +46,8 @@ from training_utils.loss import MapLoss, DistillationLoss
 from multi_task_models.grcn_multi_alex import Multi_AlexnetMap_v3
 import shutil
 
-task = "cls"
-opposite_pretrained = False
+task = "grasp"
+opposite_pretrained = True
 params = Params() 
 paths = Path()
 SEED = params.SEED

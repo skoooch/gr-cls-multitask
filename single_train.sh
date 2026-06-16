@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=55
+#SBATCH --job-name=67
 #SBATCH --output=shap_log/shapley_%A_%a.out
 #SBATCH --error=shap_log/shapley_%A_%a.err
 #SBATCH --partition=gpunodes
