@@ -31,3 +31,4 @@ dump
 goodale/
 features_top_5/
 task_rep_weights/*
+*parameters.py
