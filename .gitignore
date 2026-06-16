@@ -33,3 +33,4 @@ features_top_5/
 task_rep_weights/*
 logs/*
 .git-rewrite*
+*.sh

@@ -846,10 +846,17 @@ def concatenate_shap_arrays(task = "cls", seeds = [31,51,81]):
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
+<<<<<<< HEAD
     # concatenate_shap_arrays("grasp", seeds = [32, 52, 62, 72, 82])
     # init_cross_seed_dif_task_avr(seeds = [[31, 51,81], [32, 52, 62, 72, 82]])
     # exit()
     if str(params.SEED)[-1] in ["1", "5", "0"]:
+=======
+    concatenate_shap_arrays("grasp", seeds = [32, 52, 62, 72, 82])
+    init_cross_seed_dif_task_avr(seeds = [[31, 51,81], [32, 52, 62, 72, 82]])
+    exit()
+    if str(params.SEED)[-1] in ["1", "5"]:
+>>>>>>> a6882460039cd4b6d5f984eb0a720cf23152df84
         task = "cls"
         diff = 5
     else:
