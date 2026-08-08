@@ -842,21 +842,65 @@ def concatenate_shap_arrays(task = "cls", seeds = [31,51,81]):
     np.save(out_path, concatenated)
     print(f"Saved concatenated array of shape {concatenated.shape} to {out_path}")
     return concatenated
+def dump_raw_scores():
+    seeds = [31,32,35,36,51,52,95,56,62,65,67,70,72,75,76,81,82,85,86]
+    reg_seed = [43,44,45,0, 47]
+    for seed in seeds:
+        if str(seed)[-1] in ["1", "5", "0"]:
+            task = "cls"
+        else:
+            task = "grasp"
+        
+        model_name_1 = params.MODEL_NAME_SEED
 
+        players_dict = {}
+        results_dict_by_layer = {}
+        model_name_2_array = model_name_1.split('_')
+        model_name_2_array[-1] = str(seed)
+        model_name = '_'.join(model_name_2_array)
+        for layer in LAYERS:
+            results = {}
+            players = []
+            run_name = '%s_%s_%s' % (model_name, layer, task)
+            run_dir = os.path.join(DIR, run_name)
+            players = get_players(run_dir)
+            instatiate_chosen_players(run_dir, players)    
+            results[task] = get_results_list(run_dir)
+            players_dict[layer] = players
+            results_dict_by_layer[layer] = results
+        for i,layer in enumerate(LAYERS):
+            results = results_dict_by_layer[layer][task]
+            players = players_dict[layer]
+            squares, sums, counts = [np.zeros(len(players)) for _ in range(3)]
+            for result in results:
+                mem_tmc = get_result(result)
+                sums += np.sum((mem_tmc != -1) * mem_tmc, 0)
+                squares += np.sum((mem_tmc != -1) * (mem_tmc ** 2), 0)
+                counts += np.sum(mem_tmc != -1, 0)
+            # No. of iterations for each neuron
+            counts = np.clip(counts, 1e-12, None)
+            # Expected shapley values of each neuron
+            vals = sums / (counts + 1e-12)
+            # Assuming vals is already calculated for the two tasks:
+              # Access the first task
+            # Extract the values for both tasks
+            out_path = f'shap_arrays/raw_scores.csv'
+            write_header = not os.path.exists(out_path)
+            with open(out_path, 'a') as f:
+                if write_header:
+                    f.write('seed,layer,task,neuron_idx,shapley_value\n')
+                for neuron_idx, val in enumerate(vals):
+                    f.write(f'{seed},{layer},{task},{neuron_idx},{val}\n')
+            
 if __name__ == '__main__':
     if DIR not in os.listdir('vis'):
         os.mkdir(os.path.join('vis', DIR))
-<<<<<<< HEAD
     # concatenate_shap_arrays("grasp", seeds = [32, 52, 62, 72, 82])
     # init_cross_seed_dif_task_avr(seeds = [[31, 51,81], [32, 52, 62, 72, 82]])
     # exit()
-    if str(params.SEED)[-1] in ["1", "5", "0"]:
-=======
-    concatenate_shap_arrays("grasp", seeds = [32, 52, 62, 72, 82])
-    init_cross_seed_dif_task_avr(seeds = [[31, 51,81], [32, 52, 62, 72, 82]])
+    dump_raw_scores()
     exit()
-    if str(params.SEED)[-1] in ["1", "5"]:
->>>>>>> a6882460039cd4b6d5f984eb0a720cf23152df84
+    if str(params.SEED)[-1] in ["1", "5", "0"]:
         task = "cls"
         diff = 5
     else:
